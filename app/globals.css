@@ -1334,6 +1334,16 @@ a { color: inherit; text-decoration: none; }
 .prava-modal .prava-iframe-slot { width: 100%; min-height: 100%; height: 100%; }
 .prava-modal .prava-iframe-slot iframe { width: 100% !important; height: 100% !important; display: block; border: 0; }
 @keyframes spin { to { transform: rotate(360deg); } }
+.prava-save-state { min-height: 420px; display: grid; place-items: center; align-content: center; padding: 42px; text-align: center; color: var(--ink); }
+.prava-save-state strong { margin-top: 18px; font-size: 18px; }
+.prava-save-state p { max-width: 260px; margin: 9px 0 0; color: rgba(23, 21, 30, 0.62); font-size: 12px; line-height: 1.5; }
+.prava-save-spinner { width: 34px; height: 34px; border: 3px solid rgba(23, 21, 30, 0.14); border-top-color: var(--ink); border-radius: 50%; animation: spin 0.8s linear infinite; }
+.prava-success-modal { width: min(390px, 100%); padding: 34px 30px 30px; border: 1px solid rgba(247, 244, 238, 0.18); border-radius: 8px; background: var(--ink-soft); color: var(--paper); text-align: center; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45); }
+.prava-success-icon { width: 54px; height: 54px; display: grid; place-items: center; margin: 0 auto 17px; border-radius: 50%; background: var(--signal); color: var(--ink); }
+.prava-success-eyebrow { color: var(--signal); font-size: 10px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
+.prava-success-modal h2 { margin: 8px 0 0; font-size: 22px; }
+.prava-success-modal p { margin: 9px auto 21px; max-width: 290px; color: rgba(247, 244, 238, 0.68); font-size: 12px; line-height: 1.5; }
+.prava-success-modal a { display: inline-flex; min-height: 38px; align-items: center; padding: 0 14px; border-radius: 4px; background: var(--paper); color: var(--ink); font-size: 11px; font-weight: 900; }
 .prava-complete { padding: 20px 4px 5px; text-align: center; }
 .prava-complete svg { color: var(--signal); }
 .prava-complete strong { display: block; margin-top: 11px; font-size: 17px; }

@@ -285,21 +285,43 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
       {(paymentState === "collecting" || paymentState === "recording") && pravaSession && (
         <div className="prava-modal-backdrop" role="presentation">
           <section className="prava-modal prava-modal-plain" role="dialog" aria-modal="true" aria-label="Prava secure checkout">
-            <button className="prava-modal-close" type="button" onClick={cancelPravaCollection} aria-label="Close Prava checkout">
-              <X aria-hidden="true" size={20} />
-            </button>
-            <PravaCardForm
-              session={pravaSession}
-              onSuccess={() => {
-                // The iframe can finish before Prava's server-side result is completed.
-                // Leave polling in control so a transient pending response cannot lose the write.
-                setPaymentState("collecting");
-              }}
-              onError={(error) => {
-                setPaymentState("error");
-                setPaymentError(error.message);
-              }}
-            />
+            {paymentState === "recording" ? (
+              <div className="prava-save-state" role="status" aria-live="polite">
+                <span className="prava-save-spinner" aria-hidden="true" />
+                <strong>Saving your mandate</strong>
+                <p>Prava has confirmed the authorization. We&apos;re securely saving it for artist approval.</p>
+              </div>
+            ) : (
+              <>
+                <button className="prava-modal-close" type="button" onClick={cancelPravaCollection} aria-label="Close Prava checkout">
+                  <X aria-hidden="true" size={20} />
+                </button>
+                <PravaCardForm
+                  session={pravaSession}
+                  onSuccess={() => {
+                    // The iframe can finish before Prava's server-side result is completed.
+                    // Leave polling in control so a transient pending response cannot lose the write.
+                    setPaymentState("collecting");
+                  }}
+                  onError={(error) => {
+                    setPaymentState("error");
+                    setPaymentError(error.message);
+                  }}
+                />
+              </>
+            )}
+          </section>
+        </div>
+      )}
+
+      {paymentState === "complete" && (
+        <div className="prava-modal-backdrop" role="presentation">
+          <section className="prava-success-modal" role="dialog" aria-modal="true" aria-labelledby="prava-success-title">
+            <div className="prava-success-icon"><CheckCircle2 aria-hidden="true" size={28} /></div>
+            <span className="prava-success-eyebrow">Mandate saved</span>
+            <h2 id="prava-success-title">Your cap is ready.</h2>
+            <p>Nothing can charge until {artist.name} accepts the {city} city drop.</p>
+            <Link href="/dashboard">Return to discovery</Link>
           </section>
         </div>
       )}
