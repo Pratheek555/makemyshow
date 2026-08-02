@@ -124,7 +124,7 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
 
         if (!response.ok) throw new Error(data.error || "We could not confirm the Prava authorization yet.");
 
-        if (data.status === "completed") {
+        if (data.status === "completed" || data.status === "awaiting_result") {
           await recordCompletedMandate(activeSession);
           return;
         }
@@ -303,9 +303,10 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
                 <PravaCardForm
                   session={pravaSession}
                   onSuccess={() => {
-                    // The iframe can finish before Prava's server-side result is completed.
-                    // Leave polling in control so a transient pending response cannot lose the write.
-                    setPaymentState("collecting");
+                    void recordCompletedMandate(pravaSession).catch((error) => {
+                      setPaymentState("error");
+                      setPaymentError(error instanceof Error ? error.message : "We could not save the Prava mandate.");
+                    });
                   }}
                   onSessionComplete={() => {
                     void recordCompletedMandate(pravaSession).catch((error) => {
