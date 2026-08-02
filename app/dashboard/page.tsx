@@ -3,10 +3,10 @@
 /* eslint-disable @next/next/no-img-element */
 
 import Link from "next/link";
-import { CalendarDays, Compass, Disc3, Headphones, HeartPulse, MapPin, MicVocal, Music2, PartyPopper, Sparkles } from "lucide-react";
+import { CalendarDays, Compass, Disc3, Headphones, HeartPulse, LogOut, MapPin, MicVocal, Music2, PartyPopper, Sparkles } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { artistDrops, cities, type ArtistDrop } from "./data";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { cities, type ArtistDrop } from "./data";
 
 type DiscoveryCategory = {
   name: string;
@@ -20,6 +20,11 @@ type SessionUser = {
   user_metadata?: { display_name?: string };
 };
 
+type LiveDropsResponse = {
+  drops?: ArtistDrop[];
+  error?: string;
+};
+
 function getInitials(user: SessionUser) {
   const label = user.user_metadata?.display_name?.trim() || user.email?.split("@")[0] || "You";
   const parts = label.split(/\s+/).filter(Boolean);
@@ -27,22 +32,65 @@ function getInitials(user: SessionUser) {
   return label.slice(0, 2).toUpperCase();
 }
 
-const discoveryCategories: DiscoveryCategory[] = [
-  { name: "All artists", description: "6 city drops", icon: Sparkles, matches: () => true },
-  { name: "Indie folk", description: "1 city drop", icon: Music2, matches: (artist) => artist.genre === "Indie folk" },
-  { name: "Indie pop", description: "2 city drops", icon: Headphones, matches: (artist) => artist.genre === "Indie pop" },
-  { name: "Electronic", description: "1 city drop", icon: Disc3, matches: (artist) => artist.genre === "Electronic" },
-  { name: "Hip-hop", description: "2 city drops", icon: MicVocal, matches: (artist) => artist.genre === "Hip-hop" },
-  { name: "Popular now", description: "4 rising signals", icon: PartyPopper, matches: (artist) => artist.demand >= 100 },
-];
+const categoryIcons: Record<string, LucideIcon> = {
+  "All artists": Sparkles,
+  Electronic: Disc3,
+  "Hip-hop": MicVocal,
+  "Indie folk": Music2,
+  "Indie pop": Headphones,
+  "Popular now": PartyPopper,
+};
+
+function countLabel(count: number, singular = "city drop") {
+  return `${count} ${singular}${count === 1 ? "" : "s"}`;
+}
 
 export default function DashboardPage() {
   const [checkingSession, setCheckingSession] = useState(true);
   const [accountInitials, setAccountInitials] = useState("ME");
   const [city, setCity] = useState("Vijayawada");
   const [activeCategory, setActiveCategory] = useState("All artists");
+  const [drops, setDrops] = useState<ArtistDrop[]>([]);
+  const [loadingDrops, setLoadingDrops] = useState(true);
+  const [dropsError, setDropsError] = useState("");
+  const discoveryCategories = useMemo<DiscoveryCategory[]>(() => {
+    const genres = Array.from(new Set(drops.map((artist) => artist.genre).filter(Boolean))).sort();
+    const categories: DiscoveryCategory[] = [
+      { name: "All artists", description: countLabel(drops.length), icon: Sparkles, matches: () => true },
+      ...genres.map((genre) => ({
+        name: genre,
+        description: countLabel(drops.filter((artist) => artist.genre === genre).length),
+        icon: categoryIcons[genre] ?? Music2,
+        matches: (artist: ArtistDrop) => artist.genre === genre,
+      })),
+      {
+        name: "Popular now",
+        description: countLabel(drops.filter((artist) => artist.demand >= Math.max(1, Math.round(artist.target * 0.5))).length, "rising signal"),
+        icon: PartyPopper,
+        matches: (artist) => artist.demand >= Math.max(1, Math.round(artist.target * 0.5)),
+      },
+    ];
+    return categories;
+  }, [drops]);
   const activeCategoryData = discoveryCategories.find((category) => category.name === activeCategory) ?? discoveryCategories[0];
-  const filteredArtists = useMemo(() => artistDrops.filter(activeCategoryData.matches), [activeCategoryData]);
+  const filteredArtists = useMemo(() => drops.filter(activeCategoryData.matches), [activeCategoryData, drops]);
+
+  const loadLiveDrops = useCallback(async () => {
+    setLoadingDrops(true);
+    setDropsError("");
+
+    try {
+      const response = await fetch("/api/fan/drops", { cache: "no-store" });
+      const data = (await response.json()) as LiveDropsResponse;
+      if (!response.ok) throw new Error(data.error || "Could not load live city drops.");
+      setDrops(data.drops ?? []);
+    } catch (error) {
+      setDrops([]);
+      setDropsError(error instanceof Error ? error.message : "Could not load live city drops.");
+    } finally {
+      setLoadingDrops(false);
+    }
+  }, []);
 
   useEffect(() => {
     fetch("/api/auth/session", { cache: "no-store" })
@@ -54,9 +102,10 @@ export default function DashboardPage() {
         }
         setAccountInitials(getInitials(data.user));
         setCheckingSession(false);
+        void loadLiveDrops();
       })
       .catch(() => window.location.assign("/login"));
-  }, []);
+  }, [loadLiveDrops]);
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -87,7 +136,8 @@ export default function DashboardPage() {
         <div className="discover-topbar-actions">
           <span className="pulse-label"><span /> Live pulse</span>
           <label className="discover-city-select"><MapPin aria-hidden="true" size={14} /><span className="sr-only">Choose your city</span><select value={city} onChange={(event) => setCity(event.target.value)}>{cities.map((item) => <option key={item}>{item}</option>)}</select></label>
-          <button className="discover-avatar" aria-label={`Log out ${accountInitials}`} onClick={logout} type="button">{accountInitials}</button>
+          <span className="discover-avatar" aria-label={`Signed in as ${accountInitials}`}>{accountInitials}</span>
+          <button className="discover-logout-button" onClick={logout} type="button"><LogOut aria-hidden="true" size={14} /> Log out</button>
         </div>
       </header>
 
@@ -108,17 +158,24 @@ export default function DashboardPage() {
 
         <section id="featured" className="discover-section featured-drops" aria-labelledby="featured-heading">
           <div className="featured-heading"><div><h2 id="featured-heading">Featured city drops</h2><p>{activeCategory === "All artists" ? `Artists collecting real demand in ${city}.` : `${activeCategory} drops collecting real demand in ${city}.`}</p></div><span>{filteredArtists.length} active</span></div>
-          <div className="featured-artist-grid">
-            {filteredArtists.map((artist) => (
-              <Link className="featured-artist-card" href={`/dashboard/artists/${artist.slug}`} key={artist.slug}>
-                <div className="artist-card-topline"><img src={artist.image} alt="Live concert performance" /><span>View drop</span></div>
-                <h3>{artist.name}</h3>
-                <p>{artist.genre} city drop in {city}</p>
-                <div className="artist-card-signal"><span><b>{artist.demand}</b> fans committed</span><em>{artist.note}</em></div>
-              </Link>
-            ))}
-          </div>
-          {filteredArtists.length === 0 && <p className="discover-empty">No city drops match this sound yet.</p>}
+          {dropsError && <p className="discover-empty discover-error" role="alert">{dropsError}</p>}
+          {loadingDrops ? (
+            <p className="discover-empty">Loading live city drops...</p>
+          ) : (
+            <>
+              <div className="featured-artist-grid">
+                {filteredArtists.map((artist) => (
+                  <Link className="featured-artist-card" href={`/dashboard/artists/${artist.slug}`} key={artist.slug}>
+                    <div className="artist-card-topline"><img src={artist.image} alt="Live concert performance" /><span>View drop</span></div>
+                    <h3>{artist.name}</h3>
+                    <p>{artist.genre} city drop in {artist.city ?? city}</p>
+                    <div className="artist-card-signal"><span><b>{artist.demand}</b> fans committed</span><em>{artist.note}</em></div>
+                  </Link>
+                ))}
+              </div>
+              {filteredArtists.length === 0 && <p className="discover-empty">No live city drops match this sound yet.</p>}
+            </>
+          )}
         </section>
       </div>
     </main>

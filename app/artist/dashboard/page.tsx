@@ -248,6 +248,7 @@ export default function ArtistDashboardPage() {
             <button type="button" aria-label="Open notifications"><Bell size={17} /></button>
             <a href="#create-show"><Plus size={16} /> Create event</a>
             <div className="artist-account-chip" aria-label="Artist account">{accountInitials}</div>
+            <button className="artist-topbar-logout" type="button" onClick={logout}><LogOut aria-hidden="true" size={15} /> Log out</button>
           </div>
         </header>
 

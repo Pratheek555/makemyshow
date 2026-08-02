@@ -10,6 +10,7 @@ export type ArtistDrop = {
   note: string;
   image: string;
   description: string;
+  city?: string;
 };
 
 export const artistDrops: ArtistDrop[] = [

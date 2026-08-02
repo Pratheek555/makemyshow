@@ -19,7 +19,7 @@ type PravaSession = {
 };
 
 export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
-  const [city, setCity] = useState("Vijayawada");
+  const [city, setCity] = useState(artist.city ?? "Vijayawada");
   const [quantity, setQuantity] = useState(2);
   const [priceCeiling, setPriceCeiling] = useState(1999);
   const [email, setEmail] = useState("");
