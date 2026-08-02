@@ -29,7 +29,7 @@ type PendingMandate = {
 
 export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
   const pendingMandateKey = `mms.pending-mandate.${artist.slug}`;
-  const recordMandatePromiseRef = useRef<Promise<void> | null>(null);
+  const recordMandatePromiseRef = useRef<Promise<boolean> | null>(null);
   const [city, setCity] = useState(artist.city ?? "Vijayawada");
   const [quantity, setQuantity] = useState(2);
   const [priceCeiling, setPriceCeiling] = useState(1999);
@@ -85,7 +85,7 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
       const data = (await response.json()) as { mandateId?: number | null; error?: string };
       if (response.status === 409) {
         setPaymentState("collecting");
-        return;
+        return false;
       }
       if (!response.ok) throw new Error(data.error || "The mandate completed, but we could not store it yet.");
       setMandateId(data.mandateId ?? null);
@@ -93,11 +93,12 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
       setPravaSession(null);
       setPaymentState("complete");
       window.localStorage.removeItem(pendingMandateKey);
+      return true;
     })();
 
     recordMandatePromiseRef.current = promise;
     try {
-      await promise;
+      return await promise;
     } finally {
       recordMandatePromiseRef.current = null;
     }
@@ -124,14 +125,14 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
 
         if (!response.ok) throw new Error(data.error || "We could not confirm the Prava authorization yet.");
 
-        if (data.status === "completed" || data.status === "awaiting_result") {
-          await recordCompletedMandate(activeSession);
-          return;
-        }
-
         if (data.status === "failed") {
           throw new Error(data.error || "Prava could not complete this authorization.");
         }
+
+        // Try the persistence endpoint for every non-failed state. Prava can
+        // create the active mandate a moment after the session result changes.
+        const saved = await recordCompletedMandate(activeSession);
+        if (saved) return;
 
         if (attempts >= 60) {
           throw new Error("Prava is still processing this authorization. Please refresh in a minute to confirm.");
