@@ -131,10 +131,10 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
           throw new Error(data.error || "Prava could not complete this authorization.");
         }
 
-        // Try the persistence endpoint for every non-failed state. Prava can
-        // create the active mandate a moment after the session result changes.
-        const saved = await recordCompletedMandate(activeSession);
-        if (saved) return;
+        if (data.status === "completed") {
+          await recordCompletedMandate(activeSession);
+          return;
+        }
 
         if (attempts >= 60) {
           throw new Error("Prava is still processing this authorization. Please refresh in a minute to confirm.");
@@ -309,10 +309,9 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
                 <PravaCardForm
                   session={pravaSession}
                   onSuccess={() => {
-                    void recordCompletedMandate(pravaSession).catch((error) => {
-                      setPaymentState("error");
-                      setPaymentError(error instanceof Error ? error.message : "We could not save the Prava mandate.");
-                    });
+                    // Prava's SDK success callback confirms card collection,
+                    // not the final mandate authorization.
+                    setPaymentState("collecting");
                   }}
                   onSessionComplete={() => {
                     void recordCompletedMandate(pravaSession).catch((error) => {
