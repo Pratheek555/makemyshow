@@ -240,10 +240,9 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
             <PravaCardForm
               session={pravaSession}
               onSuccess={() => {
-                void recordCompletedMandate(pravaSession).catch((error: unknown) => {
-                  setPaymentState("error");
-                  setPaymentError(error instanceof Error ? error.message : "The mandate completed, but we could not store it yet.");
-                });
+                // The iframe can finish before Prava's server-side result is completed.
+                // Leave polling in control so a transient pending response cannot lose the write.
+                setPaymentState("collecting");
               }}
               onError={(error) => {
                 setPaymentState("error");
