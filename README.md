@@ -25,9 +25,11 @@ Add these values to `.env.local`:
 ```bash
 PRAVA_SECRET_KEY=sk_test_your_key_here
 NEXT_PUBLIC_PRAVA_PUBLISHABLE_KEY=pk_test_your_key_here
-PRAVA_MERCHANT_URL=https://your-site.example
+PRAVA_MERCHANT_URL=http://localhost:3000
 PRAVA_API_BASE_URL=https://sandbox.api.prava.space
 ```
+
+Use your deployed HTTPS origin for `PRAVA_MERCHANT_URL` in production. During local testing, the session route falls back to the current app origin if this value is missing or still set to a placeholder.
 
 The integration also accepts the SDK template aliases `MERCHANT_SECRET_KEY`, `NEXT_PUBLIC_PUBLISHABLE_KEY`, and `NEXT_PUBLIC_BACKEND_URL`.
 

@@ -25,17 +25,28 @@ type PravaSessionResponse = {
   };
 };
 
+function resolveMerchantUrl(request: Request) {
+  const configuredUrl = process.env.PRAVA_MERCHANT_URL?.trim();
+  const requestOrigin = new URL(request.url).origin;
+
+  if (!configuredUrl || configuredUrl.includes("your-promoter-domain.example")) {
+    return requestOrigin;
+  }
+
+  return configuredUrl;
+}
+
 export async function POST(request: Request) {
   const secretKey = process.env.PRAVA_SECRET_KEY || process.env.MERCHANT_SECRET_KEY;
   const merchantName = process.env.PRAVA_MERCHANT_NAME || "MakeMyShow";
-  const merchantUrl = process.env.PRAVA_MERCHANT_URL;
+  const merchantUrl = resolveMerchantUrl(request);
   const merchantCountry = process.env.PRAVA_MERCHANT_COUNTRY || "IN";
 
-  if (!secretKey || !merchantUrl) {
+  if (!secretKey) {
     return NextResponse.json(
       {
         error:
-          "Prava is not configured yet. Add PRAVA_SECRET_KEY or MERCHANT_SECRET_KEY, plus PRAVA_MERCHANT_URL, to enable live authorization.",
+          "Prava is not configured yet. Add PRAVA_SECRET_KEY or MERCHANT_SECRET_KEY to enable live authorization.",
       },
       { status: 503 },
     );
