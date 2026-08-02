@@ -103,7 +103,7 @@ function Metric({ icon: Icon, label, value, note }: { icon: LucideIcon; label: s
   );
 }
 
-function EventRow({ event }: { event: ArtistEvent }) {
+function EventRow({ event, approving, onApprove }: { event: ArtistEvent; approving: boolean; onApprove: (event: ArtistEvent) => void }) {
   const progress = event.capacity ? Math.round((event.sold / event.capacity) * 100) : 0;
   return (
     <article className="artist-event-row">
@@ -121,6 +121,7 @@ function EventRow({ event }: { event: ArtistEvent }) {
       </div>
       <strong>{event.revenue}</strong>
       <div className="artist-row-actions">
+        {event.status === "Submitted" && <button className="artist-approve-action" type="button" onClick={() => onApprove(event)} disabled={approving} aria-label={`Approve ${event.title}`}>{approving ? "..." : "Approve"}</button>}
         <button type="button" aria-label={`Edit ${event.title}`}><Pencil size={15} /></button>
         <button type="button" aria-label={`View ${event.title}`}><Eye size={15} /></button>
       </div>
@@ -140,6 +141,7 @@ export default function ArtistDashboardPage() {
   const [ticketTier, setTicketTier] = useState("Standard");
   const [eventStatus, setEventStatus] = useState("");
   const [creatingEvent, setCreatingEvent] = useState(false);
+  const [approvingEventId, setApprovingEventId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/auth/session", { cache: "no-store" })
@@ -206,6 +208,21 @@ export default function ArtistDashboardPage() {
     setEventStatus("Event submitted and saved to Supabase.");
     if (data.event) setEvents((current) => [data.event as ArtistEvent, ...current]);
     else void loadEvents();
+  }
+
+  async function approveEvent(event: ArtistEvent) {
+    if (!event.id) return;
+    setApprovingEventId(event.id);
+    setEventStatus("");
+    const response = await fetch(`/api/artist/events/${encodeURIComponent(event.id)}/approve`, { method: "POST" });
+    const data = (await response.json()) as { error?: string; pendingSettlement?: number; requested?: number };
+    setApprovingEventId(null);
+    if (!response.ok) {
+      setEventStatus(data.error || "Could not approve this event.");
+      return;
+    }
+    setEvents((current) => current.map((item) => item.id === event.id ? { ...item, status: "Live" } : item));
+    setEventStatus(data.pendingSettlement ? `Event is live. ${data.pendingSettlement} mandate charge${data.pendingSettlement === 1 ? " is" : "s are"} waiting for settlement.` : "Event is live and ready for ticket settlement.");
   }
 
   if (checkingSession) {
@@ -277,7 +294,7 @@ export default function ArtistDashboardPage() {
               <button type="button">View all <ChevronRight size={15} /></button>
             </div>
             <div className="artist-events-list">
-              {events.map((event) => <EventRow event={event} key={event.id ?? `${event.title}-${event.city}`} />)}
+              {events.map((event) => <EventRow event={event} approving={approvingEventId === event.id} onApprove={approveEvent} key={event.id ?? `${event.title}-${event.city}`} />)}
               {events.length === 0 && <p className="artist-empty-state">No DB-backed events yet. Create one from the panel.</p>}
             </div>
           </section>

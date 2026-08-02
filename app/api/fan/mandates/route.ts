@@ -21,10 +21,19 @@ type PravaPaymentResult = {
   order_id?: string | null;
   status?: "pending" | "completed" | "failed" | string;
   transactions?: Array<{
+    txn_id?: string;
     status?: string;
     error?: { message?: string };
   }>;
   error?: { message?: string };
+};
+
+type PravaMandate = {
+  id?: string;
+  status?: string;
+  approvedAmount?: string;
+  merchantName?: string;
+  createdAt?: string;
 };
 
 async function readPravaResult(sessionId: string) {
@@ -39,6 +48,19 @@ async function readPravaResult(sessionId: string) {
 
   if (!response.ok) throw new Error(data.error?.message || "Prava could not retrieve the payment result.");
   return data;
+}
+
+async function findPravaMandate(userId: string, artistName: string, depositCap: number) {
+  const secretKey = process.env.PRAVA_SECRET_KEY || process.env.MERCHANT_SECRET_KEY;
+  if (!secretKey) throw new Error("Prava is not configured yet.");
+  const url = `${API_BASE_URL}/v1/mandates?customer_id=${encodeURIComponent(userId)}&standing_only=true`;
+  const response = await fetch(url, { headers: { Authorization: `Bearer ${secretKey}` }, cache: "no-store" });
+  const data = (await response.json()) as { mandates?: PravaMandate[]; error?: { message?: string } };
+  if (!response.ok) throw new Error(data.error?.message || "Prava could not retrieve the mandate reference.");
+  const expectedAmount = depositCap.toFixed(2);
+  return (data.mandates ?? [])
+    .filter((mandate) => mandate.status === "active" && mandate.approvedAmount === expectedAmount && (!mandate.merchantName || mandate.merchantName.toLowerCase().includes(artistName.toLowerCase())))
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0]?.id ?? null;
 }
 
 async function writeServiceRow<T>(path: string, body: unknown, prefer = "resolution=merge-duplicates,return=representation"): Promise<T> {
@@ -99,6 +121,8 @@ export async function POST(request: Request) {
 
     const artistSlug = body?.artistSlug?.trim() || null;
     const cityDropId = artistSlug && uuidPattern.test(artistSlug) ? artistSlug : null;
+    const pravaUserId = user.id;
+    const pravaMandateId = await findPravaMandate(pravaUserId, artistName, depositCap);
     const rows = await writeServiceRow<Array<{ id: number }>>(
       "/fan_mandates?on_conflict=prava_session_id",
       {
@@ -113,6 +137,8 @@ export async function POST(request: Request) {
         currency: "INR",
         prava_session_id: sessionId,
         prava_order_id: body?.orderId || pravaResult.order_id || null,
+        prava_user_id: pravaUserId,
+        prava_mandate_id: pravaMandateId,
         status: "authorized",
         prava_result: pravaResult,
         updated_at: new Date().toISOString(),

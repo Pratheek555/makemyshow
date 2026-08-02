@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getCurrentUser } from "../../../_lib/auth-server";
 
 const API_BASE_URL = process.env.PRAVA_API_BASE_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://sandbox.api.prava.space";
 const INR = "INR";
@@ -41,6 +42,7 @@ export async function POST(request: Request) {
   const merchantName = process.env.PRAVA_MERCHANT_NAME || "MakeMyShow";
   const merchantUrl = resolveMerchantUrl(request);
   const merchantCountry = process.env.PRAVA_MERCHANT_COUNTRY || "IN";
+  const currentUser = await getCurrentUser();
 
   if (!secretKey) {
     return NextResponse.json(
@@ -95,7 +97,7 @@ export async function POST(request: Request) {
   const description = `30% capped authorization for ${artist} in ${city}. No charge until artist acceptance.`;
   const amount = depositCap.toFixed(2);
   const payload = {
-    user_id: `fan-${crypto.randomUUID()}`,
+    user_id: currentUser?.id || `fan-${crypto.randomUUID()}`,
     user_email: email,
     total_amount: amount,
     currency: INR,

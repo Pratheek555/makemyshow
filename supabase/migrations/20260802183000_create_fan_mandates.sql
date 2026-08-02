@@ -11,6 +11,9 @@ create table if not exists public.fan_mandates (
   currency text not null default 'INR',
   prava_session_id text not null,
   prava_order_id text,
+  prava_user_id text,
+  prava_mandate_id text,
+  prava_charge_id text,
   status text not null default 'authorized'
     check (status in ('authorized', 'artist_approved', 'charged', 'cancelled', 'failed')),
   prava_result jsonb not null default '{}'::jsonb,
@@ -22,6 +25,7 @@ create table if not exists public.fan_mandates (
 create index if not exists fan_mandates_fan_user_id_idx on public.fan_mandates (fan_user_id);
 create index if not exists fan_mandates_city_drop_id_idx on public.fan_mandates (city_drop_id);
 create index if not exists fan_mandates_status_idx on public.fan_mandates (status);
+create index if not exists fan_mandates_prava_mandate_id_idx on public.fan_mandates (prava_mandate_id);
 
 alter table public.fan_mandates enable row level security;
 
