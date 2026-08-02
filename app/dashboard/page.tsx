@@ -15,6 +15,18 @@ type DiscoveryCategory = {
   matches: (artist: ArtistDrop) => boolean;
 };
 
+type SessionUser = {
+  email?: string;
+  user_metadata?: { display_name?: string };
+};
+
+function getInitials(user: SessionUser) {
+  const label = user.user_metadata?.display_name?.trim() || user.email?.split("@")[0] || "You";
+  const parts = label.split(/\s+/).filter(Boolean);
+  if (parts.length > 1) return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  return label.slice(0, 2).toUpperCase();
+}
+
 const discoveryCategories: DiscoveryCategory[] = [
   { name: "All artists", description: "6 city drops", icon: Sparkles, matches: () => true },
   { name: "Indie folk", description: "1 city drop", icon: Music2, matches: (artist) => artist.genre === "Indie folk" },
@@ -26,6 +38,7 @@ const discoveryCategories: DiscoveryCategory[] = [
 
 export default function DashboardPage() {
   const [checkingSession, setCheckingSession] = useState(true);
+  const [accountInitials, setAccountInitials] = useState("ME");
   const [city, setCity] = useState("Vijayawada");
   const [activeCategory, setActiveCategory] = useState("All artists");
   const activeCategoryData = discoveryCategories.find((category) => category.name === activeCategory) ?? discoveryCategories[0];
@@ -34,11 +47,12 @@ export default function DashboardPage() {
   useEffect(() => {
     fetch("/api/auth/session", { cache: "no-store" })
       .then(async (response) => {
-        const data = (await response.json()) as { user?: unknown };
+        const data = (await response.json()) as { user?: SessionUser };
         if (!response.ok || !data.user) {
           window.location.assign("/login");
           return;
         }
+        setAccountInitials(getInitials(data.user));
         setCheckingSession(false);
       })
       .catch(() => window.location.assign("/login"));
@@ -63,7 +77,7 @@ export default function DashboardPage() {
         <div className="discover-topbar-actions">
           <span className="pulse-label"><span /> Live pulse</span>
           <label className="discover-city-select"><MapPin aria-hidden="true" size={14} /><span className="sr-only">Choose your city</span><select value={city} onChange={(event) => setCity(event.target.value)}>{cities.map((item) => <option key={item}>{item}</option>)}</select></label>
-          <button className="discover-avatar" aria-label="Log out" onClick={logout} type="button">PK</button>
+          <button className="discover-avatar" aria-label={`Log out ${accountInitials}`} onClick={logout} type="button">{accountInitials}</button>
         </div>
       </header>
 
