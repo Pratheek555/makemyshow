@@ -78,7 +78,9 @@ function toArtistDrop(row: CityDropRow, index: number): ArtistDrop {
 
   return {
     slug: row.id,
-    name: row.artist_profiles?.stage_name?.trim() || row.title,
+    // Each city drop has its own event title. Use it for the drop identity so
+    // multiple drops from the same artist do not all collapse to one name.
+    name: row.title?.trim() || row.artist_profiles?.stage_name?.trim() || "Untitled city drop",
     genre: row.artist_profiles?.genre?.trim() || "Live event",
     demand,
     target,
