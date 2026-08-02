@@ -24,9 +24,7 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
   const [quantity, setQuantity] = useState(2);
   const [priceCeiling, setPriceCeiling] = useState(1999);
   const [email, setEmail] = useState("");
-  const [paymentState, setPaymentState] = useState<PaymentState>(
-    () => (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("prava") === "complete" ? "complete" : "idle"),
-  );
+  const [paymentState, setPaymentState] = useState<PaymentState>("idle");
   const [paymentError, setPaymentError] = useState("");
   const [pravaSession, setPravaSession] = useState<PravaSession | null>(null);
   const [mandateId, setMandateId] = useState<number | null>(null);

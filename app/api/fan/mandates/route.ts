@@ -50,17 +50,24 @@ async function readPravaResult(sessionId: string) {
   return data;
 }
 
-async function findPravaMandate(userId: string, artistName: string, depositCap: number) {
+async function findPravaMandate(userId: string, depositCap: number) {
   const secretKey = process.env.PRAVA_SECRET_KEY || process.env.MERCHANT_SECRET_KEY;
-  if (!secretKey) throw new Error("Prava is not configured yet.");
+  if (!secretKey) return null;
   const url = `${API_BASE_URL}/v1/mandates?customer_id=${encodeURIComponent(userId)}&standing_only=true`;
-  const response = await fetch(url, { headers: { Authorization: `Bearer ${secretKey}` }, cache: "no-store" });
-  const data = (await response.json()) as { mandates?: PravaMandate[]; error?: { message?: string } };
-  if (!response.ok) throw new Error(data.error?.message || "Prava could not retrieve the mandate reference.");
-  const expectedAmount = depositCap.toFixed(2);
-  return (data.mandates ?? [])
-    .filter((mandate) => mandate.status === "active" && mandate.approvedAmount === expectedAmount && (!mandate.merchantName || mandate.merchantName.toLowerCase().includes(artistName.toLowerCase())))
-    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0]?.id ?? null;
+  try {
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${secretKey}` }, cache: "no-store" });
+    const data = (await response.json()) as { mandates?: PravaMandate[]; error?: { message?: string } };
+    if (!response.ok) {
+      console.warn("Prava mandate lookup did not complete; saving the verified session without a mandate id.", { status: response.status, message: data.error?.message });
+      return null;
+    }
+    const expectedAmount = depositCap.toFixed(2);
+    return (data.mandates ?? [])
+      .filter((mandate) => mandate.status === "active" && mandate.approvedAmount === expectedAmount)
+      .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0]?.id ?? null;
+  } catch {
+    return null;
+  }
 }
 
 async function writeServiceRow<T>(path: string, body: unknown, prefer = "resolution=merge-duplicates,return=representation"): Promise<T> {
@@ -122,7 +129,7 @@ export async function POST(request: Request) {
     const artistSlug = body?.artistSlug?.trim() || null;
     const cityDropId = artistSlug && uuidPattern.test(artistSlug) ? artistSlug : null;
     const pravaUserId = user.id;
-    const pravaMandateId = await findPravaMandate(pravaUserId, artistName, depositCap);
+    const pravaMandateId = await findPravaMandate(pravaUserId, depositCap);
     const rows = await writeServiceRow<Array<{ id: number }>>(
       "/fan_mandates?on_conflict=prava_session_id",
       {
