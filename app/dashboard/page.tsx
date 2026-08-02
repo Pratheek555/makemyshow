@@ -25,6 +25,24 @@ type LiveDropsResponse = {
   error?: string;
 };
 
+type FanMandate = {
+  id: number;
+  artist_name: string;
+  city: string;
+  quantity: number;
+  price_ceiling_minor: number;
+  deposit_cap_minor: number;
+  currency: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type MandatesResponse = {
+  mandates?: FanMandate[];
+  error?: string;
+};
+
 function getInitials(user: SessionUser) {
   const label = user.user_metadata?.display_name?.trim() || user.email?.split("@")[0] || "You";
   const parts = label.split(/\s+/).filter(Boolean);
@@ -45,6 +63,26 @@ function countLabel(count: number, singular = "city drop") {
   return `${count} ${singular}${count === 1 ? "" : "s"}`;
 }
 
+function formatMandateAmount(minor: number, currency = "INR") {
+  return new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 }).format(minor / 100);
+}
+
+function formatMandateDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Date unavailable";
+  return new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric" }).format(date);
+}
+
+function mandateStatusLabel(status: string) {
+  return {
+    authorized: "Authorized",
+    artist_approved: "Artist approved",
+    charged: "Charged",
+    cancelled: "Cancelled",
+    failed: "Failed",
+  }[status] ?? status.replaceAll("_", " ");
+}
+
 export default function DashboardPage() {
   const [checkingSession, setCheckingSession] = useState(true);
   const [accountInitials, setAccountInitials] = useState("ME");
@@ -53,6 +91,9 @@ export default function DashboardPage() {
   const [drops, setDrops] = useState<ArtistDrop[]>([]);
   const [loadingDrops, setLoadingDrops] = useState(true);
   const [dropsError, setDropsError] = useState("");
+  const [mandates, setMandates] = useState<FanMandate[]>([]);
+  const [loadingMandates, setLoadingMandates] = useState(true);
+  const [mandatesError, setMandatesError] = useState("");
   const discoveryCategories = useMemo<DiscoveryCategory[]>(() => {
     const genres = Array.from(new Set(drops.map((artist) => artist.genre).filter(Boolean))).sort();
     const categories: DiscoveryCategory[] = [
@@ -92,6 +133,23 @@ export default function DashboardPage() {
     }
   }, []);
 
+  const loadMandates = useCallback(async () => {
+    setLoadingMandates(true);
+    setMandatesError("");
+
+    try {
+      const response = await fetch("/api/fan/mandates", { cache: "no-store" });
+      const data = (await response.json()) as MandatesResponse;
+      if (!response.ok) throw new Error(data.error || "Could not load your mandates.");
+      setMandates(data.mandates ?? []);
+    } catch (error) {
+      setMandates([]);
+      setMandatesError(error instanceof Error ? error.message : "Could not load your mandates.");
+    } finally {
+      setLoadingMandates(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetch("/api/auth/session", { cache: "no-store" })
       .then(async (response) => {
@@ -103,9 +161,10 @@ export default function DashboardPage() {
         setAccountInitials(getInitials(data.user));
         setCheckingSession(false);
         void loadLiveDrops();
+        void loadMandates();
       })
       .catch(() => window.location.assign("/login"));
-  }, [loadLiveDrops]);
+  }, [loadLiveDrops, loadMandates]);
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -130,7 +189,7 @@ export default function DashboardPage() {
         <Link className="discover-brand" href="/" aria-label="MakeMyShow home"><Sparkles aria-hidden="true" size={17} /><span>MakeMyShow</span></Link>
         <nav aria-label="Primary navigation">
           <a href="#featured"><CalendarDays aria-hidden="true" size={15} /> City drops</a>
-          <a href="#featured"><HeartPulse aria-hidden="true" size={15} /> My mandates</a>
+          <a href="#mandates"><HeartPulse aria-hidden="true" size={15} /> My mandates</a>
           <a className="active" href="#discover"><Compass aria-hidden="true" size={15} /> Discover</a>
         </nav>
         <div className="discover-topbar-actions">
@@ -175,6 +234,42 @@ export default function DashboardPage() {
               </div>
               {filteredArtists.length === 0 && <p className="discover-empty">No live city drops match this sound yet.</p>}
             </>
+          )}
+        </section>
+
+        <div className="discover-divider" />
+
+        <section id="mandates" className="discover-section mandates-section" aria-labelledby="mandates-heading">
+          <div className="featured-heading">
+            <div><h2 id="mandates-heading">My mandates</h2><p>Review the commitments you have authorized for upcoming city drops.</p></div>
+            <span>{countLabel(mandates.length, "mandate")}</span>
+          </div>
+          {mandatesError && <p className="discover-empty discover-error" role="alert">{mandatesError}</p>}
+          {loadingMandates ? (
+            <p className="discover-empty">Loading your mandates...</p>
+          ) : mandates.length === 0 ? (
+            <div className="mandates-empty">
+              <HeartPulse aria-hidden="true" size={22} />
+              <div><strong>No mandates yet</strong><p>When you authorize a cap for a city drop, it will appear here for easy checking.</p></div>
+              <a href="#featured">Browse city drops <span aria-hidden="true">-&gt;</span></a>
+            </div>
+          ) : (
+            <div className="mandates-grid">
+              {mandates.map((mandate) => (
+                <article className="mandate-card" key={mandate.id}>
+                  <div className="mandate-card-topline"><span>Mandate #{mandate.id}</span><b className={`mandate-status mandate-status-${mandate.status}`}>{mandateStatusLabel(mandate.status)}</b></div>
+                  <h3>{mandate.artist_name}</h3>
+                  <p className="mandate-card-location">{mandate.city} city drop</p>
+                  <div className="mandate-card-facts">
+                    <div><span>Cap</span><strong>{formatMandateAmount(mandate.deposit_cap_minor, mandate.currency)}</strong></div>
+                    <div><span>Tickets</span><strong>{mandate.quantity}</strong></div>
+                    <div><span>Ticket ceiling</span><strong>{formatMandateAmount(mandate.price_ceiling_minor, mandate.currency)}</strong></div>
+                    <div><span>Authorized</span><strong>{formatMandateDate(mandate.created_at)}</strong></div>
+                  </div>
+                  <p className="mandate-card-note">Your cap stays within the selected ticket terms. No charge is made until the artist approves the city drop.</p>
+                </article>
+              ))}
+            </div>
           )}
         </section>
       </div>

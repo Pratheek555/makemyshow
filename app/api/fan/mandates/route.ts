@@ -37,6 +37,19 @@ type PravaMandate = {
   createdAt?: string;
 };
 
+type FanMandateRow = {
+  id: number;
+  artist_name: string;
+  city: string;
+  quantity: number;
+  price_ceiling_minor: number;
+  deposit_cap_minor: number;
+  currency: string;
+  status: "authorized" | "artist_approved" | "charged" | "cancelled" | "failed" | string;
+  created_at: string;
+  updated_at: string;
+};
+
 async function readPravaResult(sessionId: string) {
   const secretKey = process.env.PRAVA_SECRET_KEY || process.env.MERCHANT_SECRET_KEY;
   if (!secretKey) throw new Error("Prava is not configured yet.");
@@ -87,6 +100,31 @@ async function writeServiceRow<T>(path: string, body: unknown, prefer = "resolut
   });
   if (!response.ok) throw new Error(await readSupabaseError(response));
   return (await response.json()) as T;
+}
+
+export async function GET() {
+  try {
+    const user = await getCurrentUser();
+    if (!user?.id) return NextResponse.json({ error: "Log in as a fan to view your mandates." }, { status: 401 });
+
+    // MVP session IDs are not persisted in Supabase, so they have no mandates to read yet.
+    if (!uuidPattern.test(user.id)) return NextResponse.json({ mandates: [] });
+
+    const path = `/fan_mandates?fan_user_id=eq.${encodeURIComponent(user.id)}&select=id,artist_name,city,quantity,price_ceiling_minor,deposit_cap_minor,currency,status,created_at,updated_at&order=created_at.desc`;
+    const response = await fetch(supabaseRestUrl(path), {
+      headers: supabaseServiceHeaders(),
+      cache: "no-store",
+    });
+    if (!response.ok) throw new Error(await readSupabaseError(response));
+
+    const mandates = (await response.json()) as FanMandateRow[];
+    return NextResponse.json({ mandates });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Could not load your mandates." },
+      { status: 500 },
+    );
+  }
 }
 
 export async function POST(request: Request) {

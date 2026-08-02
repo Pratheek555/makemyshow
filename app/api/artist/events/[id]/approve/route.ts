@@ -23,6 +23,13 @@ async function patchRows<T>(path: string, body: unknown): Promise<T[]> {
 }
 
 type MandateRow = { id: number; prava_mandate_id: string | null; deposit_cap_minor: number; status: string; artist_name: string; city: string };
+type ChargeResult = { transactionId?: string; status?: string; fetchStatus?: string; errorCode?: string; errorMessage?: string; credentials?: unknown };
+
+function isSettledCharge(charge: ChargeResult) {
+  return [charge.status, charge.fetchStatus]
+    .map((value) => value?.trim().toLowerCase())
+    .some((value) => value && ["completed", "charged", "settled", "success", "succeeded"].includes(value));
+}
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -46,6 +53,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!secretKey) return NextResponse.json({ ok: true, requested: mandates.length, charged: 0, pendingSettlement: mandates.length, warning: "Event is live. Add Prava secret configuration to request mandate charges." });
 
     let pendingSettlement = 0;
+    let charged = 0;
     for (const mandate of mandates) {
       if (!mandate.prava_mandate_id) {
         await patchRows(`/fan_mandates?id=eq.${mandate.id}`, { status: "failed", prava_result: { error: "Prava mandate reference was not found." }, updated_at: new Date().toISOString() });
@@ -58,17 +66,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         body: JSON.stringify({ amount: (mandate.deposit_cap_minor / 100).toFixed(2), reference }),
         cache: "no-store",
       });
-      const charge = (await chargeResponse.json()) as { transactionId?: string; status?: string; fetchStatus?: string; errorCode?: string; errorMessage?: string; credentials?: unknown };
+      const charge = (await chargeResponse.json()) as ChargeResult;
       const safeCharge = { transactionId: charge.transactionId, status: charge.status, fetchStatus: charge.fetchStatus, errorCode: charge.errorCode, errorMessage: charge.errorMessage };
       if (!chargeResponse.ok || charge.status === "failed") {
         await patchRows(`/fan_mandates?id=eq.${mandate.id}`, { status: "failed", prava_charge_id: charge.transactionId ?? null, prava_result: safeCharge, updated_at: new Date().toISOString() });
         continue;
       }
-      pendingSettlement += 1;
-      await patchRows(`/fan_mandates?id=eq.${mandate.id}`, { status: "artist_approved", prava_charge_id: charge.transactionId ?? null, prava_result: safeCharge, updated_at: new Date().toISOString() });
+      const status = isSettledCharge(charge) ? "charged" : "artist_approved";
+      if (status === "charged") charged += 1;
+      else pendingSettlement += 1;
+      await patchRows(`/fan_mandates?id=eq.${mandate.id}`, { status, prava_charge_id: charge.transactionId ?? null, prava_result: safeCharge, updated_at: new Date().toISOString() });
     }
 
-    return NextResponse.json({ ok: true, requested: mandates.length, charged: 0, pendingSettlement });
+    return NextResponse.json({ ok: true, requested: mandates.length, charged, pendingSettlement });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Could not approve this event." }, { status: 500 });
   }

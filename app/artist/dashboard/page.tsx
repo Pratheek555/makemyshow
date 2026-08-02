@@ -28,6 +28,7 @@ import {
   Ticket,
   Upload,
   Users,
+  X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
@@ -53,7 +54,10 @@ type ArtistEvent = {
   date: string;
   venue: string;
   status: "Live" | "Submitted" | "Draft" | "Completed";
-  sold: number;
+  showType?: string;
+  ticketTier?: string;
+  mandates: number;
+  ticketsRequested: number;
   capacity: number;
   revenue: string;
 };
@@ -103,8 +107,8 @@ function Metric({ icon: Icon, label, value, note }: { icon: LucideIcon; label: s
   );
 }
 
-function EventRow({ event, approving, onApprove }: { event: ArtistEvent; approving: boolean; onApprove: (event: ArtistEvent) => void }) {
-  const progress = event.capacity ? Math.round((event.sold / event.capacity) * 100) : 0;
+function EventRow({ event, approving, onApprove, onEdit, onView }: { event: ArtistEvent; approving: boolean; onApprove: (event: ArtistEvent) => void; onEdit: (event: ArtistEvent) => void; onView: (event: ArtistEvent) => void }) {
+  const progress = event.capacity ? Math.round((event.ticketsRequested / event.capacity) * 100) : 0;
   return (
     <article className="artist-event-row">
       <div className="artist-event-date"><span>{event.date}</span><small>{event.city}</small></div>
@@ -116,14 +120,14 @@ function EventRow({ event, approving, onApprove }: { event: ArtistEvent; approvi
         <span className={`artist-status artist-status-${event.status.toLowerCase()}`}>{event.status}</span>
       </div>
       <div className="artist-event-progress">
-        <div><span>{event.sold} sold</span><b>{event.capacity} cap</b></div>
+        <div><span>{event.mandates} mandate{event.mandates === 1 ? "" : "s"} · {event.ticketsRequested} ticket{event.ticketsRequested === 1 ? "" : "s"} requested</span><b>{event.capacity} cap</b></div>
         <i><em style={{ width: `${Math.min(progress, 100)}%` }} /></i>
       </div>
       <strong>{event.revenue}</strong>
       <div className="artist-row-actions">
         {event.status === "Submitted" && <button className="artist-approve-action" type="button" onClick={() => onApprove(event)} disabled={approving} aria-label={`Approve ${event.title}`}>{approving ? "..." : "Approve"}</button>}
-        <button type="button" aria-label={`Edit ${event.title}`}><Pencil size={15} /></button>
-        <button type="button" aria-label={`View ${event.title}`}><Eye size={15} /></button>
+        <button type="button" onClick={() => onEdit(event)} aria-label={`Edit ${event.title}`}><Pencil size={15} /></button>
+        <button type="button" onClick={() => onView(event)} aria-label={`View ${event.title}`}><Eye size={15} /></button>
       </div>
     </article>
   );
@@ -142,6 +146,8 @@ export default function ArtistDashboardPage() {
   const [eventStatus, setEventStatus] = useState("");
   const [creatingEvent, setCreatingEvent] = useState(false);
   const [approvingEventId, setApprovingEventId] = useState<string | null>(null);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  const [viewingEvent, setViewingEvent] = useState<ArtistEvent | null>(null);
 
   useEffect(() => {
     fetch("/api/auth/session", { cache: "no-store" })
@@ -162,6 +168,8 @@ export default function ArtistDashboardPage() {
   const artistProfile = user?.user_metadata?.artist_profile;
   const artistName = artistProfile?.artist_name || user?.user_metadata?.display_name || "Neon Monsoon";
   const accountInitials = useMemo(() => getInitials(user), [user]);
+  const mandateCount = useMemo(() => events.reduce((total, event) => total + event.mandates, 0), [events]);
+  const ticketsRequested = useMemo(() => events.reduce((total, event) => total + event.ticketsRequested, 0), [events]);
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -183,8 +191,8 @@ export default function ArtistDashboardPage() {
     setCreatingEvent(true);
     setEventStatus("");
 
-    const response = await fetch("/api/artist/events", {
-      method: "POST",
+    const response = await fetch(editingEventId ? `/api/artist/events/${encodeURIComponent(editingEventId)}` : "/api/artist/events", {
+      method: editingEventId ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title: eventTitle,
@@ -205,9 +213,35 @@ export default function ArtistDashboardPage() {
     setEventTitle("");
     setEventCity("");
     setEventVenue("");
-    setEventStatus("Event submitted and saved to Supabase.");
-    if (data.event) setEvents((current) => [data.event as ArtistEvent, ...current]);
+    setShowType("Ticketed");
+    setTicketTier("Standard");
+    setEventStatus(editingEventId ? "Event updated in Supabase." : "Event submitted and saved to Supabase.");
+    setEditingEventId(null);
+    if (editingEventId) void loadEvents();
+    else if (data.event) setEvents((current) => [data.event as ArtistEvent, ...current]);
     else void loadEvents();
+  }
+
+  function editEvent(event: ArtistEvent) {
+    if (!event.id) return;
+    setEditingEventId(event.id);
+    setEventTitle(event.title);
+    setEventCity(event.city);
+    setEventVenue(event.venue);
+    setShowType(event.showType || "Ticketed");
+    setTicketTier(event.ticketTier || "Standard");
+    setEventStatus(`Editing ${event.title}.`);
+    document.getElementById("create-show")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function cancelEdit() {
+    setEditingEventId(null);
+    setEventTitle("");
+    setEventCity("");
+    setEventVenue("");
+    setShowType("Ticketed");
+    setTicketTier("Standard");
+    setEventStatus("");
   }
 
   async function approveEvent(event: ArtistEvent) {
@@ -223,6 +257,7 @@ export default function ArtistDashboardPage() {
     }
     setEvents((current) => current.map((item) => item.id === event.id ? { ...item, status: "Live" } : item));
     setEventStatus(data.pendingSettlement ? `Event is live. ${data.pendingSettlement} mandate charge${data.pendingSettlement === 1 ? " is" : "s are"} waiting for settlement.` : "Event is live and ready for ticket settlement.");
+    void loadEvents();
   }
 
   if (checkingSession) {
@@ -279,7 +314,7 @@ export default function ArtistDashboardPage() {
 
         <section className="artist-metrics-grid" aria-label="Artist performance summary">
           <Metric icon={CalendarClock} label="Submitted events" value={String(events.length)} note="Saved in Supabase city_drops" />
-          <Metric icon={Users} label="Tickets sold" value="0" note="Sales unlock after event approval" />
+          <Metric icon={Users} label="Mandates made" value={String(mandateCount)} note={`${ticketsRequested} ticket${ticketsRequested === 1 ? "" : "s"} requested across events`} />
           <Metric icon={IndianRupee} label="Projected revenue" value="Pending" note="Estimated after pricing review" />
           <Metric icon={ClipboardList} label="Pending actions" value={isMvpSession ? "1" : "2"} note="Verification and event review" />
         </section>
@@ -294,7 +329,7 @@ export default function ArtistDashboardPage() {
               <button type="button">View all <ChevronRight size={15} /></button>
             </div>
             <div className="artist-events-list">
-              {events.map((event) => <EventRow event={event} approving={approvingEventId === event.id} onApprove={approveEvent} key={event.id ?? `${event.title}-${event.city}`} />)}
+              {events.map((event) => <EventRow event={event} approving={approvingEventId === event.id} onApprove={approveEvent} onEdit={editEvent} onView={setViewingEvent} key={event.id ?? `${event.title}-${event.city}`} />)}
               {events.length === 0 && <p className="artist-empty-state">No DB-backed events yet. Create one from the panel.</p>}
             </div>
           </section>
@@ -302,8 +337,8 @@ export default function ArtistDashboardPage() {
           <aside id="create-show" className="artist-panel artist-create-panel">
             <div className="artist-panel-heading compact">
               <div>
-                <span>New event</span>
-                <h2>Create show</h2>
+                <span>{editingEventId ? "Edit event" : "New event"}</span>
+                <h2>{editingEventId ? "Update show" : "Create show"}</h2>
               </div>
               <Sparkles size={18} />
             </div>
@@ -317,7 +352,10 @@ export default function ArtistDashboardPage() {
               <div className="artist-segmented" role="group" aria-label="Ticket tier">
                 {["Early", "Standard", "VIP"].map((item) => <button className={ticketTier === item ? "selected" : ""} type="button" key={item} onClick={() => setTicketTier(item)}>{item}</button>)}
               </div>
-              <button className="artist-primary-action" type="submit" disabled={creatingEvent}>{creatingEvent ? "Saving..." : "Submit for review"} <ArrowUpRight size={16} /></button>
+              <div className="artist-form-actions">
+                <button className="artist-primary-action" type="submit" disabled={creatingEvent}>{creatingEvent ? "Saving..." : editingEventId ? "Save changes" : "Submit for review"} <ArrowUpRight size={16} /></button>
+                {editingEventId && <button className="artist-secondary-action" type="button" onClick={cancelEdit}>Cancel</button>}
+              </div>
               {eventStatus && <p className="artist-form-status">{eventStatus}</p>}
             </form>
           </aside>
@@ -403,6 +441,25 @@ export default function ArtistDashboardPage() {
           </section>
         </div>
       </section>
+      {viewingEvent && (
+        <div className="artist-event-modal-backdrop" role="presentation" onClick={() => setViewingEvent(null)}>
+          <section className="artist-event-modal" role="dialog" aria-modal="true" aria-labelledby="artist-event-modal-title" onClick={(event) => event.stopPropagation()}>
+            <button className="artist-event-modal-close" type="button" onClick={() => setViewingEvent(null)} aria-label="Close event details"><X size={17} /></button>
+            <span>Event details</span>
+            <h2 id="artist-event-modal-title">{viewingEvent.title}</h2>
+            <p className="artist-event-modal-location"><MapPin size={14} /> {viewingEvent.venue}, {viewingEvent.city}</p>
+            <div className="artist-event-modal-facts">
+              <div><small>Status</small><strong>{viewingEvent.status}</strong></div>
+              <div><small>Date</small><strong>{viewingEvent.date}</strong></div>
+              <div><small>Mandates</small><strong>{viewingEvent.mandates}</strong></div>
+              <div><small>Tickets requested</small><strong>{viewingEvent.ticketsRequested}</strong></div>
+              <div><small>Capacity</small><strong>{viewingEvent.capacity}</strong></div>
+              <div><small>Ticket tier</small><strong>{viewingEvent.ticketTier || "Standard"}</strong></div>
+            </div>
+            <p className="artist-event-modal-note">Mandates are fan commitments made before approval. They help you decide whether to activate the event; they are only charged after approval.</p>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

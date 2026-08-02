@@ -14,6 +14,10 @@ type CityDropRow = {
   created_at: string;
   cities?: { name?: string } | null;
 };
+type FanMandateDemandRow = {
+  city_drop_id: string | null;
+  quantity: number;
+};
 
 async function readServiceRows<T>(path: string): Promise<T[]> {
   const response = await fetch(supabaseRestUrl(path), {
@@ -65,7 +69,12 @@ function parseVenue(description: string | null) {
   return match?.[1] ?? "Venue support requested";
 }
 
-function toDashboardEvent(row: CityDropRow) {
+function parseDescriptionField(description: string | null, field: string, fallback: string) {
+  const match = description?.match(new RegExp(`^${field}: ([^\\n]+)$`, "mi"));
+  return match?.[1] ?? fallback;
+}
+
+function toDashboardEvent(row: CityDropRow, demand = { mandates: 0, ticketsRequested: 0 }) {
   return {
     id: row.id,
     title: row.title,
@@ -73,7 +82,10 @@ function toDashboardEvent(row: CityDropRow) {
     date: new Date(row.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }),
     venue: parseVenue(row.description),
     status: row.status === "live" ? "Live" : row.status === "fulfilled" ? "Completed" : row.status === "draft" ? "Draft" : "Submitted",
-    sold: 0,
+    showType: parseDescriptionField(row.description, "Show type", "Ticketed"),
+    ticketTier: parseDescriptionField(row.description, "Ticket tier", "Standard"),
+    mandates: demand.mandates,
+    ticketsRequested: demand.ticketsRequested,
     capacity: row.venue_capacity ?? row.target_capacity ?? 250,
     revenue: "Pending",
   };
@@ -90,7 +102,23 @@ export async function GET() {
     const rows = await readServiceRows<CityDropRow>(
       `/city_drops?artist_id=eq.${artistId}&select=id,title,status,target_capacity,venue_capacity,description,created_at,cities(name)&order=created_at.desc`,
     );
-    return NextResponse.json({ events: rows.map(toDashboardEvent) });
+    const demandByEvent = new Map<string, { mandates: number; ticketsRequested: number }>();
+    if (rows.length > 0) {
+      const eventIds = rows.map((row) => encodeURIComponent(row.id)).join(",");
+      const mandateRows = await readServiceRows<FanMandateDemandRow>(
+        `/fan_mandates?city_drop_id=in.(${eventIds})&status=in.(authorized,artist_approved,charged)&select=city_drop_id,quantity`,
+      );
+      for (const mandate of mandateRows) {
+        if (!mandate.city_drop_id) continue;
+        const current = demandByEvent.get(mandate.city_drop_id) ?? { mandates: 0, ticketsRequested: 0 };
+        demandByEvent.set(mandate.city_drop_id, {
+          mandates: current.mandates + 1,
+          ticketsRequested: current.ticketsRequested + Math.max(0, mandate.quantity),
+        });
+      }
+    }
+
+    return NextResponse.json({ events: rows.map((row) => toDashboardEvent(row, demandByEvent.get(row.id))) });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Could not load artist events." }, { status: 500 });
   }
