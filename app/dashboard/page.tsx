@@ -137,7 +137,7 @@ export default function DashboardPage() {
           <span className="pulse-label"><span /> Live pulse</span>
           <label className="discover-city-select"><MapPin aria-hidden="true" size={14} /><span className="sr-only">Choose your city</span><select value={city} onChange={(event) => setCity(event.target.value)}>{cities.map((item) => <option key={item}>{item}</option>)}</select></label>
           <span className="discover-avatar" aria-label={`Signed in as ${accountInitials}`}>{accountInitials}</span>
-          <button className="discover-logout-button" onClick={logout} type="button"><LogOut aria-hidden="true" size={14} /> Log out</button>
+          <button className="discover-logout-button" aria-label="Log out" title="Log out" onClick={logout} type="button"><LogOut aria-hidden="true" size={14} /> <span>Log out</span></button>
         </div>
       </header>
 

@@ -1177,7 +1177,7 @@ a { color: inherit; text-decoration: none; }
 .discover-city-select select { width: 113px; height: 30px; appearance: none; border: 0; background: transparent; color: var(--paper); font-size: 12px; font-weight: 620; outline: none; }
 .discover-city-select option { background: var(--ink); color: var(--paper); }
 .discover-avatar { width: 25px; height: 25px; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--paper); color: var(--ink); font-size: 8px; font-weight: 900; }
-.discover-logout-button { min-height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid rgba(247, 244, 238, 0.2); border-radius: 5px; background: rgba(247, 244, 238, 0.08); color: var(--paper); font-size: 11px; font-weight: 760; }
+.discover-logout-button { flex: 0 0 auto; min-height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid rgba(247, 244, 238, 0.2); border-radius: 5px; background: rgba(247, 244, 238, 0.08); color: var(--paper); font-size: 11px; font-weight: 760; white-space: nowrap; }
 .discover-logout-button:hover { border-color: rgba(217, 255, 54, 0.58); background: rgba(217, 255, 54, 0.11); }
 .discover-content { width: min(788px, calc(100% - 40px)); margin: 0 auto; padding: 42px 0 80px; }
 .discover-intro h1 { margin: 0; font-size: 29px; font-weight: 800; line-height: 1.2; }

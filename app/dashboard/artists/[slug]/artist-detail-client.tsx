@@ -3,7 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import Link from "next/link";
-import { ArrowLeft, CalendarDays, CheckCircle2, Compass, HeartPulse, MapPin, ShieldCheck, Sparkles, Users, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, CheckCircle2, Compass, HeartPulse, LogOut, MapPin, ShieldCheck, Sparkles, Users, X } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PravaCardForm from "../../../_components/PravaCardForm";
 import { cities, money, type ArtistDrop } from "../../data";
@@ -225,12 +225,17 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
     window.localStorage.removeItem(pendingMandateKey);
   }
 
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.assign("/");
+  }
+
   return (
     <main className="discover-shell drop-detail-shell">
       <header className="discover-topbar">
         <Link className="discover-brand" href="/" aria-label="MakeMyShow home"><Sparkles aria-hidden="true" size={17} /><span>MakeMyShow</span></Link>
         <nav aria-label="Primary navigation"><Link href="/dashboard"><Compass aria-hidden="true" size={15} /> Discover</Link><span className="active"><CalendarDays aria-hidden="true" size={15} /> City drop</span><span><HeartPulse aria-hidden="true" size={15} /> My mandates</span></nav>
-        <div className="discover-topbar-actions"><span className="pulse-label"><span /> Live pulse</span><span className="discover-avatar" aria-label="Your account">PK</span></div>
+        <div className="discover-topbar-actions"><span className="pulse-label"><span /> Live pulse</span><span className="discover-avatar" aria-label="Your account">PK</span><button className="discover-logout-button" aria-label="Log out" title="Log out" onClick={logout} type="button"><LogOut aria-hidden="true" size={14} /> <span>Log out</span></button></div>
       </header>
 
       <div className="drop-detail-content">
