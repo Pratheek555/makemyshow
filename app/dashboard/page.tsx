@@ -63,7 +63,17 @@ export default function DashboardPage() {
     window.location.assign("/");
   }
 
-  if (checkingSession) return null;
+  if (checkingSession) {
+    return (
+      <main className="discover-shell route-loading-shell">
+        <div className="route-loading-card" role="status" aria-live="polite">
+          <Sparkles aria-hidden="true" size={22} />
+          <strong>Opening your dashboard</strong>
+          <span>Checking your MakeMyShow session...</span>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="discover-shell">

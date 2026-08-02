@@ -1050,6 +1050,16 @@ a { color: inherit; text-decoration: none; }
 
 /* Fan dashboard */
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+.route-loading-shell { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+.route-loading-card { min-width: min(100%, 310px); display: grid; justify-items: center; gap: 9px; padding: 24px; border: 1px solid rgba(247, 244, 238, 0.16); border-radius: 8px; background: rgba(247, 244, 238, 0.07); color: var(--paper); text-align: center; }
+.route-loading-card svg { color: var(--signal); }
+.route-loading-card strong { font-size: 15px; }
+.route-loading-card span { color: rgba(247, 244, 238, 0.62); font-size: 12px; line-height: 1.4; }
+.artist-loading-shell { min-height: 100vh; display: grid; grid-template-columns: 1fr; place-items: center; padding: 24px; background: #f6f2e9; }
+.artist-route-loading-card { border-color: rgba(24, 22, 29, 0.12); background: #fffdf7; color: #18161d; }
+.artist-route-loading-card svg { color: #223f86; }
+.artist-route-loading-card span { color: #6d675d; }
 .dashboard-shell { min-height: 100vh; background: var(--ink); color: var(--paper); }
 .dashboard-header { width: min(1440px, calc(100% - 56px)); height: 78px; margin: 0 auto; display: flex; align-items: center; gap: 44px; border-bottom: 1px solid rgba(247, 244, 238, 0.2); }
 .dashboard-brand { display: inline-flex; align-items: center; gap: 9px; white-space: nowrap; font-size: 15px; }
@@ -1327,6 +1337,129 @@ a { color: inherit; text-decoration: none; }
 .prava-complete strong { display: block; margin-top: 11px; font-size: 17px; }
 .prava-complete p { margin: 8px 0 17px; color: rgba(247, 244, 238, 0.66); font-size: 12px; line-height: 1.45; }
 .prava-complete a { display: inline-flex; min-height: 36px; align-items: center; padding: 0 11px; border-radius: 4px; background: var(--paper); color: var(--ink); font-size: 11px; font-weight: 900; }
+
+/* Artist auth and portal */
+.artist-signup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+.artist-signup-wide { grid-column: 1 / -1; }
+.auth-form select { width: 100%; height: 48px; appearance: none; padding: 0 34px 0 14px; border: 1px solid #d9d1bd; border-radius: 3px; outline: none; background: rgba(255,255,255,.28); color: var(--auth-ink); font-size: 14px; font-weight: 700; letter-spacing: 0; text-transform: none; }
+.auth-form select:focus { border-color: var(--auth-ink); box-shadow: 3px 3px 0 var(--auth-lime); }
+.artist-auth-switch { display: flex; justify-content: center; align-items: center; gap: 7px; margin-top: 12px; }
+
+.artist-portal-shell { min-height: 100vh; display: grid; grid-template-columns: 246px minmax(0, 1fr); background: #f6f2e9; color: #18161d; font-family: "Inter Variable", Inter, "Segoe UI Variable", "Segoe UI", sans-serif; font-variation-settings: "opsz" 32; }
+.artist-portal-sidebar { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; padding: 24px 17px; border-right: 1px solid rgba(24, 22, 29, 0.12); background: #18161d; color: #f6f2e9; }
+.artist-portal-brand { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 34px; font-size: 14px; font-weight: 850; }
+.artist-portal-brand span { width: 30px; height: 30px; display: grid; place-items: center; background: #d9ff36; color: #18161d; font-family: Georgia, serif; font-size: 18px; transform: rotate(-8deg); }
+.artist-portal-sidebar nav { display: grid; gap: 5px; }
+.artist-portal-sidebar nav a, .artist-logout { min-height: 39px; display: flex; align-items: center; gap: 10px; padding: 0 11px; border: 0; border-radius: 6px; background: transparent; color: rgba(246, 242, 233, 0.68); font-size: 12px; font-weight: 760; text-align: left; }
+.artist-portal-sidebar nav a.active, .artist-portal-sidebar nav a:hover, .artist-logout:hover { background: rgba(217, 255, 54, 0.12); color: #f6f2e9; }
+.artist-logout { margin-top: auto; width: 100%; }
+.artist-portal-main { min-width: 0; padding: 24px clamp(18px, 3vw, 40px) 54px; }
+.artist-portal-topbar { min-height: 70px; display: flex; justify-content: space-between; align-items: center; gap: 18px; margin-bottom: 18px; }
+.artist-portal-topbar span, .artist-panel-heading span { display: block; color: #6d675d; font-size: 10px; font-weight: 880; letter-spacing: .07em; text-transform: uppercase; }
+.artist-portal-topbar h1 { margin: 4px 0 0; font-size: clamp(28px, 3vw, 42px); line-height: 1; }
+.artist-topbar-actions { display: flex; align-items: center; gap: 10px; }
+.artist-topbar-actions > button, .artist-row-actions button { width: 37px; height: 37px; display: grid; place-items: center; border: 1px solid rgba(24, 22, 29, 0.14); border-radius: 6px; background: #fffdf7; color: #18161d; }
+.artist-topbar-actions > a { min-height: 37px; display: inline-flex; align-items: center; gap: 7px; padding: 0 13px; border-radius: 6px; background: #18161d; color: #f6f2e9; font-size: 12px; font-weight: 850; }
+.artist-account-chip { width: 37px; height: 37px; display: grid; place-items: center; border-radius: 50%; background: #ff684f; color: #18161d; font-size: 11px; font-weight: 900; }
+.artist-verification-band { min-height: 158px; display: flex; justify-content: space-between; align-items: end; gap: 26px; padding: 24px; border: 1px solid #18161d; border-radius: 8px; background: #83c9ff; box-shadow: 6px 6px 0 #18161d; }
+.artist-verification-band p { display: flex; align-items: center; gap: 8px; margin: 0 0 13px; font-size: 12px; font-weight: 850; }
+.artist-verification-band h2 { max-width: 770px; margin: 0; font-family: Georgia, serif; font-size: clamp(27px, 3vw, 45px); font-weight: 400; line-height: .96; }
+.artist-verification-band button, .artist-primary-action, .artist-secondary-action, .artist-panel-heading button { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 6px; font-size: 12px; font-weight: 880; }
+.artist-verification-band button { flex: 0 0 auto; padding: 0 13px; border: 1px solid #18161d; background: #d9ff36; color: #18161d; }
+.artist-metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 24px 0; }
+.artist-metrics-grid article, .artist-panel { border: 1px solid rgba(24, 22, 29, 0.12); border-radius: 8px; background: #fffdf7; }
+.artist-metrics-grid article { min-height: 136px; padding: 18px; }
+.artist-metrics-grid article div { display: flex; align-items: center; gap: 8px; color: #6d675d; font-size: 11px; font-weight: 820; }
+.artist-metrics-grid article svg { color: #223f86; }
+.artist-metrics-grid strong { display: block; margin-top: 20px; font-size: 29px; line-height: 1; }
+.artist-metrics-grid small { display: block; margin-top: 8px; color: #6d675d; font-size: 11px; line-height: 1.35; }
+.artist-workspace-grid { display: grid; grid-template-columns: minmax(0, 1fr) 346px; gap: 18px; align-items: start; }
+.artist-panel { padding: 19px; }
+.artist-panel-heading { display: flex; justify-content: space-between; align-items: start; gap: 14px; margin-bottom: 18px; }
+.artist-panel-heading h2 { margin: 4px 0 0; font-size: 20px; line-height: 1.1; }
+.artist-panel-heading button { padding: 0 10px; border: 1px solid rgba(24, 22, 29, 0.12); background: #f6f2e9; color: #18161d; }
+.artist-panel-heading.compact { align-items: center; }
+.artist-events-list { display: grid; gap: 8px; }
+.artist-event-row { display: grid; grid-template-columns: 82px minmax(0, 1.1fr) minmax(140px, .7fr) 86px 78px; gap: 12px; align-items: center; min-height: 82px; padding: 10px; border: 1px solid rgba(24, 22, 29, 0.09); border-radius: 7px; background: #f9f6ee; }
+.artist-event-date { min-height: 58px; display: grid; place-content: center; border-radius: 6px; background: #18161d; color: #f6f2e9; text-align: center; }
+.artist-event-date span, .artist-event-date small { display: block; font-weight: 850; }
+.artist-event-date small { margin-top: 4px; color: rgba(246, 242, 233, 0.62); font-size: 10px; }
+.artist-event-main { min-width: 0; display: flex; justify-content: space-between; gap: 12px; align-items: start; }
+.artist-event-main h3 { margin: 0; font-size: 15px; line-height: 1.2; }
+.artist-event-main p { display: flex; align-items: center; gap: 5px; margin: 6px 0 0; color: #6d675d; font-size: 11px; line-height: 1.3; }
+.artist-status { flex: 0 0 auto; padding: 5px 7px; border-radius: 999px; font-size: 9px; font-weight: 900; text-transform: uppercase; }
+.artist-status-live { background: #d9ff36; }
+.artist-status-submitted { background: #83c9ff; }
+.artist-status-draft { background: #efe4c6; }
+.artist-status-completed { background: #18161d; color: #f6f2e9; }
+.artist-event-progress div { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 7px; color: #6d675d; font-size: 10px; font-weight: 780; }
+.artist-event-progress i, .artist-city-list i { display: block; height: 7px; overflow: hidden; border-radius: 999px; background: rgba(24, 22, 29, 0.12); }
+.artist-event-progress em, .artist-city-list em { display: block; height: 100%; border-radius: inherit; background: #223f86; }
+.artist-row-actions { display: flex; justify-content: flex-end; gap: 6px; }
+.artist-create-panel { position: sticky; top: 18px; }
+.artist-event-form { display: grid; gap: 12px; }
+.artist-event-form label { display: grid; gap: 7px; color: #6d675d; font-size: 10px; font-weight: 850; letter-spacing: .05em; text-transform: uppercase; }
+.artist-event-form input { width: 100%; height: 42px; padding: 0 11px; border: 1px solid rgba(24, 22, 29, 0.16); border-radius: 5px; background: #f6f2e9; color: #18161d; outline: none; font-size: 13px; text-transform: none; }
+.artist-event-form input:focus { border-color: #18161d; box-shadow: 3px 3px 0 #d9ff36; }
+.artist-segmented { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.artist-segmented button { min-height: 34px; border: 1px solid rgba(24, 22, 29, 0.13); border-radius: 5px; background: #f6f2e9; color: #18161d; font-size: 11px; font-weight: 850; }
+.artist-segmented button.selected { border-color: #18161d; background: #d9ff36; }
+.artist-primary-action { width: 100%; padding: 0 13px; border: 0; background: #18161d; color: #f6f2e9; }
+.artist-primary-action:disabled { cursor: wait; opacity: .64; }
+.artist-form-status { margin: 0; padding: 10px; border-radius: 6px; background: #f6f2e9; color: #6d675d; font-size: 11px; font-weight: 760; line-height: 1.35; }
+.artist-empty-state { margin: 0; padding: 18px; border: 1px dashed rgba(24, 22, 29, 0.24); border-radius: 7px; background: #f9f6ee; color: #6d675d; font-size: 12px; line-height: 1.4; }
+.artist-secondary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
+.artist-score { color: #223f86; font-size: 26px; }
+.artist-checklist { display: grid; gap: 8px; }
+.artist-checklist p, .artist-notification-list p { display: flex; align-items: center; gap: 9px; margin: 0; padding: 10px; border-radius: 6px; background: #f6f2e9; color: #6d675d; font-size: 12px; font-weight: 760; }
+.artist-checklist p span { flex: 1; }
+.artist-checklist p.done { color: #18161d; }
+.artist-checklist p.done svg:last-child { color: #223f86; }
+.artist-secondary-action { width: 100%; margin-top: 14px; border: 1px solid rgba(24, 22, 29, 0.13); background: #f6f2e9; color: #18161d; }
+.artist-city-list { display: grid; gap: 14px; }
+.artist-city-list article div { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.artist-city-list b { font-size: 13px; }
+.artist-city-list span { color: #6d675d; font-size: 11px; }
+.artist-request-list { display: grid; gap: 8px; }
+.artist-request-list article { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 11px; border-radius: 6px; background: #f6f2e9; }
+.artist-request-list b, .artist-request-list span { display: block; }
+.artist-request-list b { font-size: 13px; }
+.artist-request-list span { margin-top: 4px; color: #6d675d; font-size: 11px; line-height: 1.3; }
+.artist-request-list button { min-height: 30px; padding: 0 9px; border: 0; border-radius: 999px; background: #83c9ff; color: #18161d; font-size: 10px; font-weight: 900; }
+.artist-payment-card { padding: 17px; border-radius: 7px; background: #18161d; color: #f6f2e9; }
+.artist-payment-card span { color: #d9ff36; font-size: 10px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+.artist-payment-card strong { display: block; margin-top: 9px; font-size: 32px; line-height: 1; }
+.artist-payment-card p { margin: 10px 0 0; color: rgba(246, 242, 233, 0.68); font-size: 12px; line-height: 1.42; }
+.artist-notification-list { display: grid; gap: 8px; }
+
+@media (max-width: 1120px) {
+  .artist-portal-shell { grid-template-columns: 1fr; }
+  .artist-portal-sidebar { position: static; height: auto; padding: 15px 18px; }
+  .artist-portal-sidebar nav { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 4px; }
+  .artist-portal-sidebar nav a { flex: 0 0 auto; }
+  .artist-logout { display: none; }
+  .artist-workspace-grid, .artist-secondary-grid { grid-template-columns: 1fr 1fr; }
+  .artist-create-panel { position: static; }
+  .artist-shows-panel { grid-column: 1 / -1; }
+  .artist-metrics-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 760px) {
+  .artist-signup-grid { grid-template-columns: 1fr; }
+  .artist-signup-wide { grid-column: auto; }
+  .artist-portal-main { padding: 18px 16px 38px; }
+  .artist-portal-topbar, .artist-verification-band { align-items: stretch; flex-direction: column; }
+  .artist-topbar-actions { flex-wrap: wrap; }
+  .artist-topbar-actions > a { flex: 1; justify-content: center; }
+  .artist-metrics-grid, .artist-workspace-grid, .artist-secondary-grid { grid-template-columns: 1fr; }
+  .artist-event-row { grid-template-columns: 70px minmax(0, 1fr); }
+  .artist-event-progress, .artist-event-row > strong, .artist-row-actions { grid-column: 2; }
+  .artist-event-main { display: block; }
+  .artist-status { display: inline-flex; margin-top: 9px; }
+  .artist-row-actions { justify-content: flex-start; }
+  .artist-request-list article, .artist-city-list article div { display: block; }
+  .artist-city-list span { display: block; margin-top: 4px; }
+}
 
 @media (max-width: 760px) {
   .discover-topbar { grid-template-columns: 1fr auto; padding: 0 14px; }

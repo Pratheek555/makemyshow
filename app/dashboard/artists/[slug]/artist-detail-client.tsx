@@ -204,6 +204,11 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
             </button>
             <PravaCardForm
               session={pravaSession}
+              onSuccess={() => {
+                setPaymentState("complete");
+                setPaymentError("");
+                setPravaSession(null);
+              }}
               onError={(error) => {
                 setPaymentState("error");
                 setPaymentError(error.message);

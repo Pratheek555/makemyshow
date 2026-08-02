@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { applySessionCookies, clearSessionCookies, getAccessToken, getRefreshToken } from "../../../_lib/auth-server";
+import { applySessionCookies, clearSessionCookies, getAccessToken, getMvpSessionUser, getRefreshToken } from "../../../_lib/auth-server";
 import { readSupabaseError, supabaseAuthUrl, supabaseHeaders, type SupabaseSession, type SupabaseUser } from "../../../_lib/supabase-rest";
 
 export async function GET() {
@@ -10,6 +10,9 @@ export async function GET() {
     const userResponse = await fetch(supabaseAuthUrl("/user"), { headers: supabaseHeaders(accessToken), cache: "no-store" });
     if (userResponse.ok) return NextResponse.json({ user: (await userResponse.json()) as SupabaseUser });
   }
+
+  const mvpUser = await getMvpSessionUser();
+  if (mvpUser) return NextResponse.json({ user: mvpUser, mvpSession: true });
 
   if (!refreshToken) return NextResponse.json({ user: null }, { status: 401 });
 
