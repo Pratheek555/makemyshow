@@ -16,6 +16,7 @@ type PravaSession = {
   iframeUrl: string;
   orderId?: string;
   expiresAt?: string;
+  createdAt?: number;
 };
 
 type PendingMandate = {
@@ -55,7 +56,7 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
         setCity(pending.city);
         setQuantity(pending.quantity);
         setPriceCeiling(pending.priceCeiling);
-        setPravaSession(pending.session);
+        setPravaSession({ ...pending.session, createdAt: pending.session.createdAt ?? pending.createdAt });
         setPaymentState("collecting");
       }, 0);
     } catch {
@@ -73,6 +74,7 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sessionId: session.sessionId,
+          sessionCreatedAt: session.createdAt,
           orderId: session.orderId,
           artistSlug: artist.slug,
           artistName: artist.name,
@@ -179,12 +181,14 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
         throw new Error(data.error || "We could not start the secure authorization.");
       }
 
+      const sessionCreatedAt = Date.now();
       setPravaSession({
         sessionId: data.sessionId,
         sessionToken: data.sessionToken,
         iframeUrl: data.iframeUrl,
         orderId: data.orderId,
         expiresAt: data.expiresAt,
+        createdAt: sessionCreatedAt,
       });
       window.localStorage.setItem(
         pendingMandateKey,
@@ -195,6 +199,7 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
             iframeUrl: data.iframeUrl,
             orderId: data.orderId,
             expiresAt: data.expiresAt,
+            createdAt: sessionCreatedAt,
           },
           city,
           quantity,

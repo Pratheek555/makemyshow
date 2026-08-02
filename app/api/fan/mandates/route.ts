@@ -7,6 +7,7 @@ const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}
 
 type MandateRequest = {
   sessionId?: string;
+  sessionCreatedAt?: number;
   orderId?: string | null;
   artistSlug?: string;
   artistName?: string;
@@ -50,9 +51,9 @@ async function readPravaResult(sessionId: string) {
   return data;
 }
 
-async function findPravaMandate(userId: string, depositCap: number) {
+async function findPravaMandate(userId: string, depositCap: number, sessionCreatedAt?: number) {
   const secretKey = process.env.PRAVA_SECRET_KEY || process.env.MERCHANT_SECRET_KEY;
-  if (!secretKey) return null;
+  if (!secretKey || !sessionCreatedAt) return null;
   const url = `${API_BASE_URL}/v1/mandates?customer_id=${encodeURIComponent(userId)}&standing_only=true`;
   try {
     const response = await fetch(url, { headers: { Authorization: `Bearer ${secretKey}` }, cache: "no-store" });
@@ -62,8 +63,12 @@ async function findPravaMandate(userId: string, depositCap: number) {
       return null;
     }
     const expectedAmount = depositCap.toFixed(2);
+    const earliestCreatedAt = sessionCreatedAt - 60_000;
     return (data.mandates ?? [])
-      .filter((mandate) => mandate.status === "active" && mandate.approvedAmount === expectedAmount)
+      .filter((mandate) => {
+        const createdAt = Date.parse(String(mandate.createdAt));
+        return mandate.status === "active" && mandate.approvedAmount === expectedAmount && Number.isFinite(createdAt) && createdAt >= earliestCreatedAt;
+      })
       .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0]?.id ?? null;
   } catch {
     return null;
@@ -93,6 +98,7 @@ export async function POST(request: Request) {
 
     const body = (await request.json().catch(() => null)) as MandateRequest | null;
     const sessionId = body?.sessionId?.trim();
+    const sessionCreatedAt = body?.sessionCreatedAt;
     const artistName = body?.artistName?.trim();
     const city = body?.city?.trim();
     const quantity = body?.quantity;
@@ -102,6 +108,7 @@ export async function POST(request: Request) {
     if (
       !sessionId ||
       !/^[a-zA-Z0-9_-]{8,200}$/.test(sessionId) ||
+      (sessionCreatedAt !== undefined && (!Number.isFinite(sessionCreatedAt) || sessionCreatedAt <= 0)) ||
       !artistName ||
       !city ||
       typeof quantity !== "number" ||
@@ -122,7 +129,7 @@ export async function POST(request: Request) {
     }
 
     const pravaResult = await readPravaResult(sessionId);
-    const pravaMandateId = await findPravaMandate(user.id, depositCap);
+    const pravaMandateId = await findPravaMandate(user.id, depositCap, sessionCreatedAt);
     if (pravaResult.status !== "completed" && !pravaMandateId) {
       return NextResponse.json({ error: "Prava has not completed this mandate yet.", status: pravaResult.status || "pending" }, { status: 409 });
     }
