@@ -56,21 +56,7 @@ async function patchServiceRow(path: string, body: unknown) {
   if (!response.ok) throw new Error(await readSupabaseError(response));
 }
 
-async function createOrUpdateConfirmedUser(email: string, password: string, name: string, artistProfile: ArtistSignupProfile): Promise<SupabaseUser> {
-  const metadata = {
-    display_name: name,
-    account_type: "artist",
-    artist_profile: {
-      artist_name: artistProfile.artistName?.trim(),
-      representative_role: artistProfile.representativeRole?.trim(),
-      category: artistProfile.category?.trim(),
-      base_city: artistProfile.baseCity?.trim(),
-      social_link: artistProfile.socialLink?.trim(),
-      verification_status: "pending_review",
-      db_persisted: true,
-    },
-  };
-
+async function createOrUpdateConfirmedUser(email: string, password: string, metadata: SupabaseUser["user_metadata"]): Promise<SupabaseUser> {
   const createResponse = await fetch(supabaseAuthUrl("/admin/users"), {
     method: "POST",
     headers: supabaseServiceHeaders(),
@@ -122,6 +108,17 @@ async function signIn(email: string, password: string) {
 
   if (!response.ok) throw new Error(await readSupabaseError(response));
   return (await response.json()) as SupabaseSession;
+}
+
+async function persistFanSignup(userId: string, name: string) {
+  await writeServiceRow(
+    "/profiles?on_conflict=id",
+    {
+      id: userId,
+      display_name: name,
+    },
+    "resolution=merge-duplicates,return=minimal",
+  );
 }
 
 async function persistArtistSignup(userId: string, name: string, artistProfile: ArtistSignupProfile) {
@@ -195,17 +192,20 @@ export async function POST(request: Request) {
   }
 
   if (accountType !== "artist") {
-    const response = await fetch(supabaseAuthUrl("/signup"), {
-      method: "POST",
-      headers: supabaseHeaders(),
-      body: JSON.stringify({ email, password, data: { display_name: name, account_type: "fan" } }),
-    });
-
-    if (!response.ok) return NextResponse.json({ error: await readSupabaseError(response) }, { status: response.status });
-    const data = (await response.json()) as SupabaseSession;
-    const result = NextResponse.json({ ok: true, requiresEmailConfirmation: !data.access_token });
-    if (data.access_token) applySessionCookies(result, data);
-    return result;
+    try {
+      const user = await createOrUpdateConfirmedUser(email, password, {
+        display_name: name,
+        account_type: "fan",
+      });
+      if (!user.id) throw new Error("Supabase did not return a user id.");
+      await persistFanSignup(user.id, name);
+      const session = await signIn(email, password);
+      const result = NextResponse.json({ ok: true, accountStatus: "active" });
+      applySessionCookies(result, session);
+      return result;
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : "Signup could not be saved to Supabase." }, { status: 500 });
+    }
   }
 
   const hasArtistBasics = artistProfile?.artistName?.trim() && artistProfile.representativeRole?.trim() && artistProfile.category?.trim() && artistProfile.baseCity?.trim() && artistProfile.socialLink?.trim();
@@ -215,7 +215,19 @@ export async function POST(request: Request) {
   const validatedArtistProfile = artistProfile as ArtistSignupProfile;
 
   try {
-    const user = await createOrUpdateConfirmedUser(email, password, name, validatedArtistProfile);
+    const user = await createOrUpdateConfirmedUser(email, password, {
+      display_name: name,
+      account_type: "artist",
+      artist_profile: {
+        artist_name: validatedArtistProfile.artistName?.trim(),
+        representative_role: validatedArtistProfile.representativeRole?.trim(),
+        category: validatedArtistProfile.category?.trim(),
+        base_city: validatedArtistProfile.baseCity?.trim(),
+        social_link: validatedArtistProfile.socialLink?.trim(),
+        verification_status: "pending_review",
+        db_persisted: true,
+      },
+    });
     if (!user.id) throw new Error("Supabase did not return a user id.");
     await persistArtistSignup(user.id, name, validatedArtistProfile);
     const session = await signIn(email, password);
