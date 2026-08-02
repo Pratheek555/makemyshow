@@ -18,7 +18,17 @@ type PravaSession = {
   expiresAt?: string;
 };
 
+type PendingMandate = {
+  session: PravaSession;
+  city: string;
+  quantity: number;
+  priceCeiling: number;
+  depositCap: number;
+  createdAt: number;
+};
+
 export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
+  const pendingMandateKey = `mms.pending-mandate.${artist.slug}`;
   const recordMandatePromiseRef = useRef<Promise<void> | null>(null);
   const [city, setCity] = useState(artist.city ?? "Vijayawada");
   const [quantity, setQuantity] = useState(2);
@@ -30,6 +40,28 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
   const [mandateId, setMandateId] = useState<number | null>(null);
   const deposit = useMemo(() => Math.round(priceCeiling * quantity * 0.3), [priceCeiling, quantity]);
   const readiness = Math.min(100, Math.round((artist.demand / artist.target) * 100));
+
+  useEffect(() => {
+    const rawPending = window.localStorage.getItem(pendingMandateKey);
+    if (!rawPending || paymentState !== "idle") return;
+
+    try {
+      const pending = JSON.parse(rawPending) as PendingMandate;
+      if (!pending.session?.sessionId || Date.now() - pending.createdAt > 24 * 60 * 60 * 1000) {
+        window.localStorage.removeItem(pendingMandateKey);
+        return;
+      }
+      window.setTimeout(() => {
+        setCity(pending.city);
+        setQuantity(pending.quantity);
+        setPriceCeiling(pending.priceCeiling);
+        setPravaSession(pending.session);
+        setPaymentState("collecting");
+      }, 0);
+    } catch {
+      window.localStorage.removeItem(pendingMandateKey);
+    }
+  }, [pendingMandateKey, paymentState]);
 
   const recordCompletedMandate = useCallback(async (session: PravaSession) => {
     if (recordMandatePromiseRef.current) return recordMandatePromiseRef.current;
@@ -56,6 +88,7 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
       setPaymentError("");
       setPravaSession(null);
       setPaymentState("complete");
+      window.localStorage.removeItem(pendingMandateKey);
     })();
 
     recordMandatePromiseRef.current = promise;
@@ -64,7 +97,7 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
     } finally {
       recordMandatePromiseRef.current = null;
     }
-  }, [artist.name, artist.slug, city, deposit, priceCeiling, quantity]);
+  }, [artist.name, artist.slug, city, deposit, pendingMandateKey, priceCeiling, quantity]);
 
   useEffect(() => {
     if (paymentState !== "collecting" || !pravaSession) return;
@@ -148,6 +181,23 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
         orderId: data.orderId,
         expiresAt: data.expiresAt,
       });
+      window.localStorage.setItem(
+        pendingMandateKey,
+        JSON.stringify({
+          session: {
+            sessionId: data.sessionId,
+            sessionToken: data.sessionToken,
+            iframeUrl: data.iframeUrl,
+            orderId: data.orderId,
+            expiresAt: data.expiresAt,
+          },
+          city,
+          quantity,
+          priceCeiling,
+          depositCap: deposit,
+          createdAt: Date.now(),
+        } satisfies PendingMandate),
+      );
       setPaymentState("collecting");
     } catch (error) {
       setPaymentState("error");
@@ -159,6 +209,7 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
     setPaymentState("idle");
     setPaymentError("");
     setPravaSession(null);
+    window.localStorage.removeItem(pendingMandateKey);
   }
 
   return (
