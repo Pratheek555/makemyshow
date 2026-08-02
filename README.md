@@ -16,6 +16,21 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Prava Payments
+
+The artist drop flow embeds Prava's secure card iframe and polls the session result from server-side routes.
+
+Add these values to `.env.local`:
+
+```bash
+PRAVA_SECRET_KEY=sk_test_your_key_here
+NEXT_PUBLIC_PRAVA_PUBLISHABLE_KEY=pk_test_your_key_here
+PRAVA_MERCHANT_URL=https://your-site.example
+PRAVA_API_BASE_URL=https://sandbox.api.prava.space
+```
+
+The integration also accepts the SDK template aliases `MERCHANT_SECRET_KEY`, `NEXT_PUBLIC_PUBLISHABLE_KEY`, and `NEXT_PUBLIC_BACKEND_URL`.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
