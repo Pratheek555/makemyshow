@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { CalendarDays, Compass, Disc3, Headphones, HeartPulse, MapPin, MicVocal, Music2, PartyPopper, Sparkles } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { artistDrops, cities, type ArtistDrop } from "./data";
 
 type DiscoveryCategory = {
@@ -25,10 +25,31 @@ const discoveryCategories: DiscoveryCategory[] = [
 ];
 
 export default function DashboardPage() {
+  const [checkingSession, setCheckingSession] = useState(true);
   const [city, setCity] = useState("Vijayawada");
   const [activeCategory, setActiveCategory] = useState("All artists");
   const activeCategoryData = discoveryCategories.find((category) => category.name === activeCategory) ?? discoveryCategories[0];
   const filteredArtists = useMemo(() => artistDrops.filter(activeCategoryData.matches), [activeCategoryData]);
+
+  useEffect(() => {
+    fetch("/api/auth/session", { cache: "no-store" })
+      .then(async (response) => {
+        const data = (await response.json()) as { user?: unknown };
+        if (!response.ok || !data.user) {
+          window.location.assign("/login");
+          return;
+        }
+        setCheckingSession(false);
+      })
+      .catch(() => window.location.assign("/login"));
+  }, []);
+
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.assign("/");
+  }
+
+  if (checkingSession) return null;
 
   return (
     <main className="discover-shell">
@@ -42,7 +63,7 @@ export default function DashboardPage() {
         <div className="discover-topbar-actions">
           <span className="pulse-label"><span /> Live pulse</span>
           <label className="discover-city-select"><MapPin aria-hidden="true" size={14} /><span className="sr-only">Choose your city</span><select value={city} onChange={(event) => setCity(event.target.value)}>{cities.map((item) => <option key={item}>{item}</option>)}</select></label>
-          <span className="discover-avatar" aria-label="Your account">PK</span>
+          <button className="discover-avatar" aria-label="Log out" onClick={logout} type="button">PK</button>
         </div>
       </header>
 

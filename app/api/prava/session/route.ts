@@ -12,6 +12,19 @@ type SessionRequest = {
   email?: string;
 };
 
+type PravaSessionResponse = {
+  iframe_url?: string;
+  session_id?: string;
+  session_token?: string;
+  expires_at?: string;
+  order_id?: string;
+  error?: {
+    code?: string;
+    message?: string;
+    details?: Record<string, string>;
+  };
+};
+
 export async function POST(request: Request) {
   const secretKey = process.env.PRAVA_SECRET_KEY || process.env.MERCHANT_SECRET_KEY;
   const merchantName = process.env.PRAVA_MERCHANT_NAME || "MakeMyShow";
@@ -117,18 +130,27 @@ export async function POST(request: Request) {
       cache: "no-store",
     });
 
-    const pravaData = (await pravaResponse.json()) as {
-      iframe_url?: string;
-      session_id?: string;
-      session_token?: string;
-      expires_at?: string;
-      order_id?: string;
-      error?: { message?: string };
-    };
+    const pravaData = (await pravaResponse.json()) as PravaSessionResponse;
 
     if (!pravaResponse.ok || !pravaData.iframe_url || !pravaData.session_id || !pravaData.session_token) {
+      const responseId = pravaResponse.headers.get("x-response-id");
+      const message = pravaData.error?.message || "Prava could not create a secure authorization session.";
+
+      // Keep Prava's support reference in server logs without ever logging the key or customer data.
+      console.error("Prava session creation failed", {
+        status: pravaResponse.status,
+        responseId,
+        code: pravaData.error?.code,
+        message,
+        details: pravaData.error?.details,
+      });
+
       return NextResponse.json(
-        { error: pravaData.error?.message || "Prava could not create a secure authorization session." },
+        {
+          error: message,
+          code: pravaData.error?.code,
+          reference: responseId,
+        },
         { status: pravaResponse.status || 502 },
       );
     }

@@ -5,9 +5,25 @@
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { audienceSegments, citySignals, storySteps } from "../_data/story";
 
-export default function LandingPage() {
+export default function LandingPage({ isLoggedIn }: { isLoggedIn: boolean }) {
   const shellRef = useRef<HTMLElement | null>(null);
   const [activeSegment, setActiveSegment] = useState(audienceSegments[0].label);
+  const [sessionIsActive, setSessionIsActive] = useState(isLoggedIn);
+
+  useEffect(() => {
+    let mounted = true;
+    fetch("/api/auth/session", { cache: "no-store" })
+      .then(async (response) => {
+        const data = (await response.json()) as { user?: unknown };
+        if (mounted) setSessionIsActive(response.ok && Boolean(data.user));
+      })
+      .catch(() => {
+        if (mounted) setSessionIsActive(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const selectedSegment = useMemo(
     () => audienceSegments.find((segment) => segment.label === activeSegment) ?? audienceSegments[0],
@@ -71,9 +87,16 @@ export default function LandingPage() {
         <nav aria-label="Landing navigation">
           <a href="#story">Story</a>
           <a href="#audience">Audience map</a>
-          <a href="/dashboard">Dashboard</a>
+          {sessionIsActive && <a href="/dashboard">Dashboard</a>}
         </nav>
-        <a className="landing-nav-cta" href="/dashboard">Open dashboard</a>
+        {sessionIsActive ? (
+          <a className="landing-nav-cta" href="/dashboard">Open dashboard</a>
+        ) : (
+          <div className="landing-auth-links">
+            <a href="/login">Log in</a>
+            <a className="landing-nav-cta" href="/signup">Sign up</a>
+          </div>
+        )}
       </header>
 
       <section className="landing-hero">
@@ -85,7 +108,7 @@ export default function LandingPage() {
             can reach the cities, rooms, and communities that are actually ready for them.
           </p>
           <div className="landing-actions">
-            <a className="landing-primary" href="/dashboard">Explore live demand <span aria-hidden="true">-&gt;</span></a>
+            <a className="landing-primary" href={sessionIsActive ? "/dashboard" : "/login"}>Explore live demand <span aria-hidden="true">-&gt;</span></a>
             <a className="landing-secondary" href="#story">Read the story</a>
           </div>
         </div>
@@ -198,7 +221,7 @@ export default function LandingPage() {
       <section className="closing-band" data-reveal>
         <p className="landing-kicker">Make the next show obvious</p>
         <h2>Stop asking where the audience might be. Let the right audience reveal itself.</h2>
-        <a className="landing-primary dark" href="/dashboard">See the dashboard <span aria-hidden="true">-&gt;</span></a>
+        <a className="landing-primary dark" href={sessionIsActive ? "/dashboard" : "/login"}>{sessionIsActive ? "See the dashboard" : "Log in to explore"} <span aria-hidden="true">-&gt;</span></a>
       </section>
     </main>
   );
