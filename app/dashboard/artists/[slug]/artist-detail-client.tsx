@@ -4,11 +4,11 @@
 
 import Link from "next/link";
 import { ArrowLeft, CalendarDays, CheckCircle2, Compass, HeartPulse, MapPin, ShieldCheck, Sparkles, Users, X } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PravaCardForm from "../../../_components/PravaCardForm";
 import { cities, money, type ArtistDrop } from "../../data";
 
-type PaymentState = "idle" | "loading" | "collecting" | "error" | "complete";
+type PaymentState = "idle" | "loading" | "collecting" | "recording" | "error" | "complete";
 
 type PravaSession = {
   sessionId: string;
@@ -19,6 +19,7 @@ type PravaSession = {
 };
 
 export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
+  const recordMandatePromiseRef = useRef<Promise<void> | null>(null);
   const [city, setCity] = useState(artist.city ?? "Vijayawada");
   const [quantity, setQuantity] = useState(2);
   const [priceCeiling, setPriceCeiling] = useState(1999);
@@ -28,15 +29,52 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
   );
   const [paymentError, setPaymentError] = useState("");
   const [pravaSession, setPravaSession] = useState<PravaSession | null>(null);
+  const [mandateId, setMandateId] = useState<number | null>(null);
   const deposit = useMemo(() => Math.round(priceCeiling * quantity * 0.3), [priceCeiling, quantity]);
   const readiness = Math.min(100, Math.round((artist.demand / artist.target) * 100));
+
+  const recordCompletedMandate = useCallback(async (session: PravaSession) => {
+    if (recordMandatePromiseRef.current) return recordMandatePromiseRef.current;
+
+    const promise = (async () => {
+      setPaymentState("recording");
+      const response = await fetch("/api/fan/mandates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: session.sessionId,
+          orderId: session.orderId,
+          artistSlug: artist.slug,
+          artistName: artist.name,
+          city,
+          quantity,
+          priceCeiling,
+          depositCap: deposit,
+        }),
+      });
+      const data = (await response.json()) as { mandateId?: number | null; error?: string };
+      if (!response.ok) throw new Error(data.error || "The mandate completed, but we could not store it yet.");
+      setMandateId(data.mandateId ?? null);
+      setPaymentError("");
+      setPravaSession(null);
+      setPaymentState("complete");
+    })();
+
+    recordMandatePromiseRef.current = promise;
+    try {
+      await promise;
+    } finally {
+      recordMandatePromiseRef.current = null;
+    }
+  }, [artist.name, artist.slug, city, deposit, priceCeiling, quantity]);
 
   useEffect(() => {
     if (paymentState !== "collecting" || !pravaSession) return;
 
     let active = true;
     let attempts = 0;
-    const sessionId = pravaSession.sessionId;
+    const activeSession = pravaSession;
+    const sessionId = activeSession.sessionId;
 
     async function pollResult() {
       attempts += 1;
@@ -52,8 +90,7 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
         if (!response.ok) throw new Error(data.error || "We could not confirm the Prava authorization yet.");
 
         if (data.status === "completed") {
-          setPaymentState("complete");
-          setPaymentError("");
+          await recordCompletedMandate(activeSession);
           return;
         }
 
@@ -78,7 +115,7 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
       active = false;
       window.clearInterval(interval);
     };
-  }, [paymentState, pravaSession]);
+  }, [paymentState, pravaSession, recordCompletedMandate]);
 
   async function startMandate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -161,17 +198,17 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
 
           <aside className="prava-card">
             {paymentState === "complete" ? (
-              <div className="prava-complete"><CheckCircle2 aria-hidden="true" size={27} /><strong>Your cap is recorded.</strong><p>Nothing can charge until {artist.name} accepts the {city} city drop.</p><Link href="/dashboard">Return to discovery</Link></div>
+              <div className="prava-complete"><CheckCircle2 aria-hidden="true" size={27} /><strong>Your cap is recorded.</strong><p>Nothing can charge until {artist.name} accepts the {city} city drop.{mandateId ? ` Mandate #${mandateId} is ready for artist approval.` : ""}</p><Link href="/dashboard">Return to discovery</Link></div>
             ) : (
               <form onSubmit={startMandate} noValidate>
                 <div className="prava-card-heading"><span><ShieldCheck aria-hidden="true" size={15} /> Secured by Prava</span><b>Authorize, don&apos;t pay</b></div>
                 <h2>Back this drop</h2>
-                {paymentState === "collecting" && pravaSession ? (
+                {(paymentState === "collecting" || paymentState === "recording") && pravaSession ? (
                   <>
                     <p>Secure Prava checkout is open. Finish authorization in the payment window.</p>
                     <div className="drop-cap"><span>One-time authorization cap</span><strong>{money(deposit)}</strong><p>30% of {quantity} ticket{quantity > 1 ? "s" : ""} at up to {money(priceCeiling)}. No charge today.</p></div>
-                    <p className="drop-payment-progress">Waiting for Prava to confirm the authorization result.</p>
-                    <button className="drop-prava-secondary" type="button" onClick={cancelPravaCollection}>Cancel authorization</button>
+                    <p className="drop-payment-progress">{paymentState === "recording" ? "Saving your completed mandate for artist approval." : "Waiting for Prava to confirm the authorization result."}</p>
+                    <button className="drop-prava-secondary" type="button" onClick={cancelPravaCollection} disabled={paymentState === "recording"}>Cancel authorization</button>
                   </>
                 ) : (
                   <>
@@ -185,7 +222,7 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
                     <label htmlFor="drop-email">Email for campaign updates</label>
                     <input id="drop-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" />
                     <div className="drop-cap"><span>One-time authorization cap</span><strong>{money(deposit)}</strong><p>30% of {quantity} ticket{quantity > 1 ? "s" : ""} at up to {money(priceCeiling)}. No charge today.</p></div>
-                    <button className="drop-prava-submit" disabled={paymentState === "loading"}>{paymentState === "loading" ? "Creating secure Prava session..." : "Set up cap with Prava"}<span aria-hidden="true">-&gt;</span></button>
+                    <button className="drop-prava-submit" disabled={paymentState === "loading" || paymentState === "recording"}>{paymentState === "loading" ? "Creating secure Prava session..." : paymentState === "recording" ? "Recording mandate..." : "Set up cap with Prava"}<span aria-hidden="true">-&gt;</span></button>
                   </>
                 )}
                 {paymentState === "error" && <p className="drop-payment-error" role="alert">{paymentError}</p>}
@@ -196,7 +233,7 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
         </div>
       </div>
 
-      {paymentState === "collecting" && pravaSession && (
+      {(paymentState === "collecting" || paymentState === "recording") && pravaSession && (
         <div className="prava-modal-backdrop" role="presentation">
           <section className="prava-modal prava-modal-plain" role="dialog" aria-modal="true" aria-label="Prava secure checkout">
             <button className="prava-modal-close" type="button" onClick={cancelPravaCollection} aria-label="Close Prava checkout">
@@ -205,9 +242,10 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
             <PravaCardForm
               session={pravaSession}
               onSuccess={() => {
-                setPaymentState("complete");
-                setPaymentError("");
-                setPravaSession(null);
+                void recordCompletedMandate(pravaSession).catch((error: unknown) => {
+                  setPaymentState("error");
+                  setPaymentError(error instanceof Error ? error.message : "The mandate completed, but we could not store it yet.");
+                });
               }}
               onError={(error) => {
                 setPaymentState("error");
