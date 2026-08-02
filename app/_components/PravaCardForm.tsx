@@ -17,10 +17,11 @@ type PravaCardFormProps = {
   session: PravaSession;
   onReady?: () => void;
   onSuccess?: () => void;
+  onSessionComplete?: () => void;
   onError?: (error: Error | PravaError) => void;
 };
 
-export default function PravaCardForm({ session, onReady, onSuccess, onError }: PravaCardFormProps) {
+export default function PravaCardForm({ session, onReady, onSuccess, onSessionComplete, onError }: PravaCardFormProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sdkRef = useRef<PravaSDK | null>(null);
   const hasMounted = useRef(false);
@@ -83,6 +84,26 @@ export default function PravaCardForm({ session, onReady, onSuccess, onError }: 
       hasMounted.current = false;
     };
   }, [mountSdk]);
+
+  useEffect(() => {
+    let allowedOrigin: string;
+
+    try {
+      allowedOrigin = new URL(session.iframeUrl).origin;
+    } catch {
+      return;
+    }
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== allowedOrigin || event.data?.type !== "PRAVA_EVENT") return;
+      if (!["PRAVA_SESSION_COMPLETED", "PRAVA_TRANSACTION_COMPLETE", "PRAVA_ENROLLMENT_COMPLETE"].includes(event.data.event)) return;
+
+      onSessionComplete?.();
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [onSessionComplete, session.iframeUrl]);
 
   useEffect(() => {
     const container = containerRef.current;

@@ -83,6 +83,10 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
         }),
       });
       const data = (await response.json()) as { mandateId?: number | null; error?: string };
+      if (response.status === 409) {
+        setPaymentState("collecting");
+        return;
+      }
       if (!response.ok) throw new Error(data.error || "The mandate completed, but we could not store it yet.");
       setMandateId(data.mandateId ?? null);
       setPaymentError("");
@@ -302,6 +306,12 @@ export default function ArtistDetailClient({ artist }: { artist: ArtistDrop }) {
                     // The iframe can finish before Prava's server-side result is completed.
                     // Leave polling in control so a transient pending response cannot lose the write.
                     setPaymentState("collecting");
+                  }}
+                  onSessionComplete={() => {
+                    void recordCompletedMandate(pravaSession).catch((error) => {
+                      setPaymentState("error");
+                      setPaymentError(error instanceof Error ? error.message : "We could not save the Prava mandate.");
+                    });
                   }}
                   onError={(error) => {
                     setPaymentState("error");

@@ -122,14 +122,14 @@ export async function POST(request: Request) {
     }
 
     const pravaResult = await readPravaResult(sessionId);
-    if (pravaResult.status !== "completed") {
+    const pravaMandateId = await findPravaMandate(user.id, depositCap);
+    if (pravaResult.status !== "completed" && !pravaMandateId) {
       return NextResponse.json({ error: "Prava has not completed this mandate yet.", status: pravaResult.status || "pending" }, { status: 409 });
     }
 
     const artistSlug = body?.artistSlug?.trim() || null;
     const cityDropId = artistSlug && uuidPattern.test(artistSlug) ? artistSlug : null;
     const pravaUserId = user.id;
-    const pravaMandateId = await findPravaMandate(pravaUserId, depositCap);
     const rows = await writeServiceRow<Array<{ id: number }>>(
       "/fan_mandates?on_conflict=prava_session_id",
       {
