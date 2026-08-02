@@ -1,8 +1,12 @@
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
+function getSupabaseConfig() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error("Supabase environment variables are not configured.");
+  if (!url || !key) {
+    throw new Error("Supabase environment variables are not configured at runtime.");
+  }
+
+  return { url, key };
 }
 
 export type SupabaseUser = {
@@ -19,16 +23,17 @@ export type SupabaseSession = {
 };
 
 export function supabaseAuthUrl(path: string) {
-  return `${supabaseUrl}/auth/v1${path}`;
+  return `${getSupabaseConfig().url}/auth/v1${path}`;
 }
 
 export function supabaseRestUrl(path: string) {
-  return `${supabaseUrl}/rest/v1${path}`;
+  return `${getSupabaseConfig().url}/rest/v1${path}`;
 }
 
 export function supabaseHeaders(accessToken?: string) {
+  const { key } = getSupabaseConfig();
   return {
-    apikey: supabaseKey,
+    apikey: key,
     "Content-Type": "application/json",
     ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
   };
